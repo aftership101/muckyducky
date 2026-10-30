@@ -157,8 +157,20 @@ try{clearTimeout(roomRetryTimer);roomRetryTimer=null;const p=new Peer(ids[index]
 catch(e){problem('signaling setup failed: '+e.message);}
 }
 async function microphone(){
-const constraints={echoCancellation:true,noiseSuppression:false,autoGainControl:true,sampleRate:{ideal:48000},channelCount:{ideal:1}};
-return navigator.mediaDevices.getUserMedia({audio:constraints,video:false});
+const supported=navigator.mediaDevices.getSupportedConstraints?.()||{};
+const constraints={echoCancellation:true,autoGainControl:true,sampleRate:{ideal:48000},channelCount:{ideal:1}};
+if(supported.noiseSuppression!==false)constraints.noiseSuppression=true;
+let capture;
+try{capture=await navigator.mediaDevices.getUserMedia({audio:constraints,video:false});}
+catch(e){
+if(e.name!=='OverconstrainedError'&&e.name!=='TypeError')throw e;
+log('advanced audio constraints unavailable; using basic microphone');
+capture=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+}
+const voice=capture.getAudioTracks()[0];
+if(voice&&'contentHint' in voice){try{voice.contentHint='speech';}catch{}}
+if(voice?.getSettings){const settings=voice.getSettings();log('voice processing: '+(settings.noiseSuppression===true?'enabled':settings.noiseSuppression===false?'unavailable/disabled':'browser-managed'));}
+return capture;
 }
 function watchMicrophone(s){
 for(const t of s.getAudioTracks()){
