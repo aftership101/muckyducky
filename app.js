@@ -42,7 +42,8 @@ function openSlot(index){if(ending||!stream)return;try{peer=new Peer(ids[index],
 async function begin(){
 if(joining||stream||peer)return;
 joining=true;ui.callBtn.disabled=true;error('');
-if(!window.Peer){joining=false;ui.callBtn.disabled=false;error('PeerJS could not load. Check your internet.');return;}\nif(!navigator.mediaDevices?.getUserMedia){joining=false;ui.callBtn.disabled=false;error('Microphone API unavailable. Open the HTTPS GitHub Pages site and allow microphone access.');return;}
+if(!window.Peer){joining=false;ui.callBtn.disabled=false;error('PeerJS could not load. Check your internet.');return;}
+if(!navigator.mediaDevices?.getUserMedia){joining=false;ui.callBtn.disabled=false;error('Microphone API unavailable. Open the HTTPS GitHub Pages site and allow microphone access.');return;}
 try{
 ui.remoteAudio.autoplay=true;ui.remoteAudio.playsInline=true;ui.remoteAudio.muted=false;
 status('requesting microphone...');
