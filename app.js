@@ -7,6 +7,7 @@ const STORE='muckyducky-mic-v1';
 let peer=null,media=null,data=null,stream=null,ids=null,slot=-1,epoch=0,stopping=false,starting=false,connecting=false;
 let healthTimer=null,redialTimer=null,clockTimer=null,startedAt=0,lastRemote=0,lastHeartbeat=0,remoteReason='',remoteState='offline',pendingAudio=false,callAttemptAt=0,dataAttemptAt=0;
 let preferredDevice='';
+let recoveryBusy=false,lastRecoveryAt=0,peerRetryAt=0;
 try{preferredDevice=localStorage.getItem(STORE)||'';}catch{}
 function log(m){events.push(new Date().toLocaleTimeString()+'  '+m);if(events.length>100)events.shift();ui.diagnostics.textContent=events.join('\n');}
 function state(m,t=''){if(ui.status.textContent!==m)log(m);ui.status.textContent=m;ui.dot.className='dot '+t;}
@@ -24,6 +25,21 @@ return ['md-'+h.slice(0,42)+'-a','md-'+h.slice(0,42)+'-b'];
 }
 function stopClock(){clearInterval(clockTimer);clockTimer=null;ui.timer.textContent='00:00';}
 function startClock(){if(clockTimer)return;startedAt=Date.now();clockTimer=setInterval(()=>{const n=Math.floor((Date.now()-startedAt)/1000);ui.timer.textContent=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');},1000);}
+async function recoverMicrophone(){
+if(stopping||!stream||recoveryBusy||Date.now()-lastRecoveryAt<12000)return;
+const old=track();if(old&&old.readyState==='live'&&!old.muted)return;
+recoveryBusy=true;lastRecoveryAt=Date.now();
+try{
+const next=await microphone();
+if(stopping){next.getTracks().forEach(t=>t.stop());return;}
+const replacement=next.getAudioTracks()[0];
+for(const sender of media?.peerConnection?.getSenders?.()||[]){if(sender.track?.kind==='audio')await sender.replaceTrack(replacement);}
+const prior=stream;stream=next;watchMicrophone(next);
+if(prior)prior.getTracks().forEach(t=>t.stop());
+log('microphone recovered');problem('');heartbeat();
+}catch(e){log('microphone recovery needs attention: '+e.name);if(e.name==='NotAllowedError'||e.name==='NotFoundError')problem('microphone permission or device unavailable');}
+finally{recoveryBusy=false;}
+}
 function closeMedia(){callAttemptAt=0;let c=media;media=null;if(c)try{c.close();}catch{}ui.remoteAudio.srcObject=null;ui.restoreBtn.hidden=true;pendingAudio=false;stopClock();}
 function clearTimers(){clearInterval(healthTimer);clearInterval(redialTimer);healthTimer=redialTimer=null;}
 function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.callBtn.disabled=false;}
@@ -92,6 +108,8 @@ healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
 heartbeat();
 if(data?.open&&lastRemote&&Date.now()-lastRemote>30000){remote('unresponsive\nreason: no heartbeat; browser/network may be suspended');}
+if(track()?.readyState==='ended'||track()?.muted){recoverMicrophone();}
+if(peer?.destroyed&&Date.now()-peerRetryAt>14000){peerRetryAt=Date.now();log('signaling closed; attempting recovery');const old=peer;peer=null;try{old.destroy();}catch{}if(slot>=0)openPeer(slot,ticket);}
 if(media?.peerConnection?.connectionState==='failed'){log('webrtc failed; redialing');closeMedia();state('reconnecting','wait');}
 },8000);
 });
@@ -123,7 +141,7 @@ function watchMicrophone(s){
 for(const t of s.getAudioTracks()){
 t.addEventListener('mute',()=>{log('microphone suspended by browser/device');refresh();heartbeat();});
 t.addEventListener('unmute',()=>{log('microphone resumed');refresh();heartbeat();});
-t.addEventListener('ended',()=>{if(stopping||stream!==s)return;log('microphone ended; automatic recovery may need permission');problem('microphone stopped; tap call again if permission is needed');refresh();});
+t.addEventListener('ended',()=>{if(stopping||stream!==s)return;log('microphone ended; attempting recovery');refresh();recoverMicrophone();});
 }
 }
 async function begin(){
@@ -139,6 +157,7 @@ const ticket=++epoch;
 const newIds=await roomIds(password);
 if(ticket!==epoch)return;
 ids=newIds;
+if(navigator.audioSession&&'type' in navigator.audioSession){try{navigator.audioSession.type='play-and-record';}catch{}}
 stream=await microphone();
 if(ticket!==epoch){stream.getTracks().forEach(t=>t.stop());stream=null;return;}
 watchMicrophone(stream);controls(true);refresh();loadDevices();openPeer(0,ticket);
@@ -150,9 +169,9 @@ ui.endBtn.addEventListener('click',()=>teardown());
 ui.muteBtn.addEventListener('click',()=>{const t=track();if(!t)return;t.enabled=!t.enabled;ui.muteBtn.textContent=t.enabled?'mute':'unmute';log(t.enabled?'unmuted':'muted');heartbeat();});
 ui.restoreBtn.addEventListener('click',play);
 ui.micSelect.addEventListener('change',()=>{preferredDevice=ui.micSelect.value;try{if(preferredDevice)localStorage.setItem(STORE,preferredDevice);else localStorage.removeItem(STORE);}catch{}log('microphone preference saved');});
-document.addEventListener('visibilitychange',()=>{log('page '+document.visibilityState);heartbeat();if(!document.hidden&&pendingAudio)play();});
-window.addEventListener('pagehide',()=>{log('pagehide (navigation, tab closure, or Safari suspension)');transmit({type:'exit',reason:'page closed or navigated away (unconfirmed)'});});
-window.addEventListener('online',()=>{log('internet reported online');heartbeat();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}});
+document.addEventListener('visibilitychange',()=>{log('page '+document.visibilityState);heartbeat();if(!document.hidden){if(pendingAudio)play();if(track()?.readyState==='ended')recoverMicrophone();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}}});
+window.addEventListener('pagehide',()=>{log('pagehide: navigation, tab closure, or browser suspension (unknown)');heartbeat();});
+window.addEventListener('online',()=>{log('internet reported online');heartbeat();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}if(track()?.readyState==='ended')recoverMicrophone();});
 window.addEventListener('offline',()=>{log('internet reported offline');heartbeat();});
 navigator.mediaDevices?.addEventListener?.('devicechange',loadDevices);
 ui.remoteAudio.addEventListener('pause',()=>{if(media)log('remote playback paused');});
