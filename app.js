@@ -61,4 +61,6 @@ document.addEventListener('visibilitychange',()=>{note('visibility: '+document.v
 ui.remoteAudio.addEventListener('pause',()=>{if(call)note('remote audio paused');});
 ui.remoteAudio.addEventListener('error',()=>{note('remote audio element error');ui.restoreBtn.hidden=false;});
 ui.remoteAudio.addEventListener('stalled',()=>note('remote audio stalled'));
-window.addEventListener('error',e=>error('Script error: '+e.message));\nwindow.addEventListener('unhandledrejection',e=>error('Call error: '+(e.reason?.message||String(e.reason))));\n})();
+window.addEventListener('error',e=>error('Script error: '+e.message));
+window.addEventListener('unhandledrejection',e=>error('Call error: '+(e.reason?.message||String(e.reason))));
+})();
