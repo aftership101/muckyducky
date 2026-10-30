@@ -47,3 +47,18 @@ test('no unexpected external dependencies other than PeerJS', () => {
   assert.match(src[0],/^https:\/\/cdn\.jsdelivr\.net\/npm\/peerjs@/);
   assert.match(src[1],/^app\.js\?v=/);
 });
+
+test('audio-session interruptions do not trigger microphone reacquisition', () => {
+  assert.match(js,/if\(old&&old\.readyState==='live'\)return/);
+  assert.match(js,/if\(track\(\)\?\.readyState==='ended'\)\{recoverMicrophone\(\);\}/);
+  assert.match(js,/microphone interrupted by another app or system; preserving call/);
+});
+test('a missing heartbeat and silent RTP alone get a longer grace period', () => {
+  assert.match(js,/quality==='dead'&&Date\.now\(\)-lastRemote>55000/);
+  assert.match(js,/\['failed','closed'\]/);
+  assert.doesNotMatch(js,/quality==='dead'\|\|/);
+});
+test('session status includes page visibility and microphone interruption', () => {
+  assert.match(js,/pageHidden:document\.hidden/);
+  assert.match(js,/micInterrupted:!!track\(\)\?\.muted/);
+});
