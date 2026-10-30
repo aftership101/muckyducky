@@ -8,6 +8,7 @@ let peer=null,media=null,data=null,stream=null,ids=null,slot=-1,epoch=0,stopping
 let healthTimer=null,redialTimer=null,clockTimer=null,startedAt=0,lastRemote=0,lastHeartbeat=0,remoteReason='',remoteState='offline',pendingAudio=false,callAttemptAt=0,dataAttemptAt=0;
 let preferredDevice='';
 let recoveryBusy=false,lastRecoveryAt=0,peerRetryAt=0,roomRetryTimer=null,presenceLost=false,hadPresence=false,mediaOpenedAt=0;
+let lastStats=null,statsBusy=false,quality='unknown',retryCount=0,nextRetry=0,holdRemote=false,lastAudioFlow=0,lastInboundPackets=null,remoteSession=null,sessionId=crypto.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2),recoveryMode=false,heartbeatAt=0;
 try{preferredDevice=localStorage.getItem(STORE)||'';}catch{}
 function log(m){events.push(new Date().toLocaleTimeString()+'  '+m);if(events.length>100)events.shift();ui.diagnostics.textContent=events.join('\n');}
 function state(m,t=''){if(ui.status.textContent!==m)log(m);ui.status.textContent=m;ui.dot.className='dot '+t;}
@@ -16,7 +17,7 @@ function remote(m){remoteState=m;ui.remoteState.textContent=m;}
 function track(){return stream?.getAudioTracks()[0];}
 function refresh(){const t=track();ui.localState.textContent='signaling: '+(peer?.open?'online':'offline')+'\nmic: '+(!t?'off':t.readyState==='ended'?'ended':t.enabled?'on':'muted')+'\npage: '+document.visibilityState+'\nnetwork: '+(navigator.onLine?'online':'offline')+'\ncall: '+(media?.open?'open':'not connected');}
 function transmit(msg){if(data?.open){try{data.send(msg);}catch(e){log('diagnostic send failed');}}}
-function heartbeat(){refresh();transmit({type:'status',state:ui.localState.textContent,time:Date.now()});}
+function heartbeat(){refresh();transmit({type:'status',session:sessionId,state:ui.localState.textContent,time:Date.now()});heartbeatAt=Date.now();}
 async function roomIds(password){
 const bytes=new TextEncoder().encode('muckyducky-private-room-v2\u0000'+password);
 const digest=await crypto.subtle.digest('SHA-256',bytes);
@@ -40,11 +41,11 @@ log('microphone recovered');problem('');heartbeat();
 }catch(e){log('microphone recovery needs attention: '+e.name);if(e.name==='NotAllowedError'||e.name==='NotFoundError')problem('microphone permission or device unavailable');}
 finally{recoveryBusy=false;}
 }
-function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;let c=media;media=null;if(c)try{c.close();}catch{}ui.remoteAudio.srcObject=null;ui.restoreBtn.hidden=true;pendingAudio=false;stopClock();}
+function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;lastStats=null;lastInboundPackets=null;let c=media;media=null;if(c)try{c.close();}catch{}ui.remoteAudio.srcObject=null;ui.restoreBtn.hidden=true;pendingAudio=false;stopClock();}
 function clearTimers(){clearInterval(healthTimer);clearInterval(redialTimer);clearTimeout(roomRetryTimer);healthTimer=redialTimer=roomRetryTimer=null;}
 function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.callBtn.disabled=false;}
 function teardown(reason='hang up button pressed'){
-stopping=true;epoch++;transmit({type:'exit',reason});log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;if(d)try{d.close();}catch{}const p=peer;peer=null;if(p)try{p.destroy();}catch{}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
+stopping=true;epoch++;transmit({type:'exit',reason});log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;if(d)try{d.close();}catch{}const p=peer;peer=null;if(p)try{p.destroy();}catch{}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;retryCount=0;nextRetry=0;lastAudioFlow=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
 }
 async function play(){
 if(!ui.remoteAudio.srcObject)return;
@@ -71,7 +72,7 @@ if(['failed','closed'].includes(rtc.connectionState)||rtc.iceConnectionState==='
 rtc.addEventListener('connectionstatechange',check);
 rtc.addEventListener('iceconnectionstatechange',check);
 }
-c.on('stream',s=>{if(media!==c)return;callAttemptAt=0;mediaOpenedAt=Date.now();ui.remoteAudio.srcObject=s;for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>log('remote track muted'));t.addEventListener('unmute',()=>{log('remote track resumed');play();});t.addEventListener('ended',()=>log('remote track ended'));}state('connected','live');problem('');startClock();play();heartbeat();});
+c.on('stream',s=>{if(media!==c)return;callAttemptAt=0;mediaOpenedAt=Date.now();retryCount=0;nextRetry=0;lastAudioFlow=Date.now();ui.remoteAudio.srcObject=s;for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>log('remote track muted'));t.addEventListener('unmute',()=>{log('remote track resumed');play();});t.addEventListener('ended',()=>log('remote track ended'));}state('connected','live');holdRemote=false;problem('');startClock();play();heartbeat();});
 c.on('close',()=>{if(media!==c)return;media=null;ui.remoteAudio.srcObject=null;stopClock();if(!stopping){state('reconnecting','wait');remote('disconnected\nreason: '+(remoteReason||'unknown; connection ended'));}});
 c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state('reconnecting','wait');}});
 }
@@ -82,35 +83,55 @@ c.on('open',()=>{dataAttemptAt=0;presenceLost=false;hadPresence=true;lastRemote=
 c.on('data',m=>{
 if(!m||typeof m!=='object')return;
 lastRemote=Date.now();presenceLost=false;hadPresence=true;
-if(m.type==='status'){remote(m.state+'\nupdated: just now');}
-if(m.type==='exit'){remoteReason=m.reason||'hang up';remote('offline\nreason: '+remoteReason);log('other person: '+remoteReason);closeMedia();state('waiting for rejoin','wait');}
+if(m.type==='status'){if(m.session&&remoteSession&&m.session!==remoteSession){log('new remote session; replacing stale connection');if(media)closeMedia();holdRemote=false;}remoteSession=m.session||remoteSession;holdRemote=false;remote(m.state+'\nupdated: just now');}
+if(m.type==='exit'){remoteReason=m.reason||'hang up';remote('offline\nreason: '+remoteReason);log('other person: '+remoteReason);holdRemote=true;closeMedia();state('waiting for rejoin','wait');const stale=data;data=null;if(stale)try{stale.close();}catch{}}
 });
 c.on('close',()=>{if(data!==c)return;data=null;if(!stopping){log('diagnostics disconnected');if(Date.now()-lastRemote>25000)remote('unreachable\nreason: unknown');}});
 c.on('error',e=>log('diagnostics error: '+e.message));
 }
 function dial(){
-if(stopping||slot!==1||!peer?.open||!stream||media)return;
+if(stopping||holdRemote||slot!==1||!peer?.open||!stream||media)return;
 try{const c=peer.call(ids[0],stream);if(c){callAttemptAt=Date.now();mediaEvents(c);}}catch(e){log('dial failed: '+e.message);}
 }
-function dialData(){if(stopping||slot!==1||!peer?.open||data?.open)return;try{dataAttemptAt=Date.now();watchData(peer.connect(ids[0],{reliable:true}));}catch(e){log('data dial failed: '+e.message);}}
+function dialData(){if(stopping||slot!==1||!peer?.open||data)return;try{dataAttemptAt=Date.now();watchData(peer.connect(ids[0],{reliable:true}));}catch(e){log('data dial failed: '+e.message);}}
+async function inspectAudio(){
+if(statsBusy||!media?.peerConnection||stopping)return;
+const pc=media.peerConnection;if(pc.connectionState==='closed')return;
+statsBusy=true;
+try{
+const reports=await pc.getStats();let inbound=null,loss=0,jitter=0,rtt=null;
+reports.forEach(x=>{if(x.type==='inbound-rtp'&&x.kind==='audio')inbound=x;if(x.type==='candidate-pair'&&x.state==='succeeded'&&x.currentRoundTripTime!=null)rtt=x.currentRoundTripTime;});
+if(inbound){let count=inbound.packetsReceived||0;loss=inbound.packetsLost||0;jitter=inbound.jitter||0;
+if(lastInboundPackets===null||count>lastInboundPackets)lastAudioFlow=Date.now();
+lastInboundPackets=count;
+const age=Date.now()-lastAudioFlow;
+quality=age>15000?'dead':age>6500?'degraded':'good';
+if(age>16000&&pc.connectionState!=='connected'&&pc.iceConnectionState!=='connected'&&pc.iceConnectionState!=='completed'){log('ICE and RTP stalled; rebuilding');closeMedia();state('reconnecting','wait');}
+const previous=lastStats?.quality;if(quality!==previous)log('audio flow: '+quality+'; jitter '+Math.round(jitter*1000)+'ms'+(rtt!==null?', RTT '+Math.round(rtt*1000)+'ms':''));
+lastStats={quality,packets:count,loss,jitter,rtt};
+}else{quality=pc.connectionState==='connected'?'unknown':'dead';}
+refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt!=null?'\nRTT: '+Math.round(lastStats.rtt*1000)+'ms':'');
+}catch(e){log('stats unavailable: '+e.name);}finally{statsBusy=false;}
+}
 function peerReady(p,index,ticket){
 p.on('open',()=>{
 if(p!==peer||ticket!==epoch||stopping){p.destroy();return;}
 slot=index;state('waiting','wait');refresh();
-if(index===1){dial();dialData();}
+if(index===1){holdRemote=false;dial();dialData();}
 clearTimers();
 redialTimer=setInterval(()=>{
 if(stopping||ticket!==epoch||!navigator.onLine)return;
 if(peer?.disconnected&&!peer.destroyed){try{peer.reconnect();}catch{}}
-if(slot===1){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>12000){log('outgoing call timed out; redialing');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>10000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media)dial();if(!data)dialData();}
+if(slot===1){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>14000){log('outgoing call timed out; redialing');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(16000,1500*Math.pow(1.7,retryCount));}if(!data)dialData();}
 },2000);
 healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
 heartbeat();
-if(hadPresence&&lastRemote&&!presenceLost&&Date.now()-lastRemote>16000){
+inspectAudio();
+if(hadPresence&&lastRemote&&!presenceLost&&Date.now()-lastRemote>18000&&quality==='dead'){
   presenceLost=true;
-  log('remote timed out after 16s without heartbeat; removing stale call');
-  remote('disconnected\nreason: no recent heartbeat (Safari stopped, network lost, or browser suspended)');
+  log('no heartbeat and no inbound RTP for 18s; removing stale call');
+  remote('disconnected\nreason: heartbeat and audio both unavailable');
   closeMedia();
   const stale=data;data=null;if(stale)try{stale.close();}catch{}
   state('waiting for rejoin','wait');
@@ -136,7 +157,7 @@ if(e.type==='unavailable-id'&&index===1){
   roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream)openPeer(0,ticket);},2500);
   return;
 }
-if(e.type==='peer-unavailable'){if(media)closeMedia();state('waiting','wait');return;}
+if(e.type==='peer-unavailable'){if(media)closeMedia();holdRemote=false;state('waiting','wait');return;}
 if(['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)){state('reconnecting','wait');return;}
 problem('connection: '+e.type);
 });
@@ -185,8 +206,9 @@ ui.restoreBtn.addEventListener('click',play);
 ui.micSelect.addEventListener('change',()=>{preferredDevice=ui.micSelect.value;try{if(preferredDevice)localStorage.setItem(STORE,preferredDevice);else localStorage.removeItem(STORE);}catch{}log('microphone preference saved');});
 document.addEventListener('visibilitychange',()=>{log('page '+document.visibilityState);heartbeat();if(!document.hidden){if(pendingAudio)play();if(track()?.readyState==='ended')recoverMicrophone();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}}});
 window.addEventListener('pagehide',()=>{log('pagehide: navigation, tab closure, or browser suspension (unknown)');});
+window.addEventListener('pageshow',()=>{log('page resumed');refresh();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}if(pendingAudio)play();});
 window.addEventListener('online',()=>{log('internet reported online');heartbeat();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}if(track()?.readyState==='ended')recoverMicrophone();});
-window.addEventListener('offline',()=>{log('internet reported offline');heartbeat();});
+window.addEventListener('offline',()=>{log('internet reported offline');quality='degraded';heartbeat();});
 navigator.mediaDevices?.addEventListener?.('devicechange',loadDevices);
 ui.remoteAudio.addEventListener('pause',()=>{if(media)log('remote playback paused');});
 ui.remoteAudio.addEventListener('error',()=>{log('audio element error');ui.restoreBtn.hidden=false;});
