@@ -18,9 +18,10 @@ test('one password input, no extra settings', () => {
   assert.equal((html.match(/<input\b/g)||[]).length,1);
   assert.doesNotMatch(html,/micSelect|copyLogBtn|inviteInput/);
 });
-test('microphone does not enable noise suppression', () => {
-  assert.match(js,/noiseSuppression:false/);
-  assert.doesNotMatch(js,/noiseSuppression:true/);
+test('native voice noise reduction and speech hint are requested', () => {
+  assert.match(js,/constraints\.noiseSuppression=true/);
+  assert.match(js,/voice\.contentHint='speech'/);
+  assert.match(js,/capture=await navigator\.mediaDevices\.getUserMedia/);
 });
 test('explicit remote hangup is handled immediately', () => {
   assert.match(js,/m\.type==='exit'/);
