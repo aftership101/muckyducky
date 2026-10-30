@@ -42,7 +42,7 @@ function openSlot(index){if(ending||!stream)return;try{peer=new Peer(ids[index],
 async function begin(){
 if(joining||stream||peer)return;
 joining=true;ui.callBtn.disabled=true;error('');
-if(!window.Peer){joining=false;ui.callBtn.disabled=false;error('PeerJS could not load. Check your internet.');return;}
+if(!window.Peer){joining=false;ui.callBtn.disabled=false;error('PeerJS could not load. Check your internet.');return;}\nif(!navigator.mediaDevices?.getUserMedia){joining=false;ui.callBtn.disabled=false;error('Microphone API unavailable. Open the HTTPS GitHub Pages site and allow microphone access.');return;}
 try{
 ui.remoteAudio.autoplay=true;ui.remoteAudio.playsInline=true;ui.remoteAudio.muted=false;
 status('requesting microphone...');
@@ -51,7 +51,7 @@ for(const t of stream.getAudioTracks()){t.addEventListener('mute',()=>note('loca
 ui.idle.hidden=true;ui.active.hidden=false;status('joining room...');openSlot(0);
 }catch(e){status('not connected');error('Microphone unavailable: '+(e.name||e.message));if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}finally{joining=false;ui.callBtn.disabled=false;}
 }
-ui.callBtn.addEventListener('click',begin);
+ui.callBtn.addEventListener('click',()=>{status('call button pressed');begin();});
 ui.endBtn.addEventListener('click',finish);
 ui.muteBtn.addEventListener('click',()=>{const track=stream?.getAudioTracks()[0];if(!track)return;track.enabled=!track.enabled;ui.muteBtn.textContent=track.enabled?'mute':'unmute';ui.muteBtn.setAttribute('aria-pressed',String(!track.enabled));note(track.enabled?'unmuted':'muted');});
 ui.restoreBtn.addEventListener('click',()=>playAudio());
@@ -60,4 +60,4 @@ document.addEventListener('visibilitychange',()=>{note('visibility: '+document.v
 ui.remoteAudio.addEventListener('pause',()=>{if(call)note('remote audio paused');});
 ui.remoteAudio.addEventListener('error',()=>{note('remote audio element error');ui.restoreBtn.hidden=false;});
 ui.remoteAudio.addEventListener('stalled',()=>note('remote audio stalled'));
-})();
+window.addEventListener('error',e=>error('Script error: '+e.message));\nwindow.addEventListener('unhandledrejection',e=>error('Call error: '+(e.reason?.message||String(e.reason))));\n})();
