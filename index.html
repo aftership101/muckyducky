@@ -2,32 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
-<title>call</title>
-<link rel="stylesheet" href="styles.css?v=20261030-2">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101010">
+<title>muckyducky</title>
+<link rel="stylesheet" href="styles.css?v=4">
 <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script defer src="app.js?v=20261030-3"></script>
+<script defer src="app.js?v=4"></script>
 </head>
 <body>
 <main>
-<h1>call</h1>
-<p id="status" role="status" aria-live="polite">not connected</p>
-<p id="timer" class="muted">00:00</p>
-<div id="idle"><button id="callBtn">call</button></div>
-<div id="active" hidden>
-<button id="muteBtn" aria-pressed="false">mute</button>
-<button id="endBtn">hang up</button>
-<button id="restoreBtn" hidden>restore audio</button>
-</div>
-<p id="error" role="alert" hidden></p>
-<details><summary>diagnostics</summary>
-<pre id="diagnostics">no activity</pre>
-<button id="copyLogBtn">copy log</button>
-</details>
-<p class="foot">one shared room · two people max</p>
-<p class="foot">Safari may stop audio when the phone locks. If it asks for a tap, this page cannot override that restriction.</p>
-<audio id="remoteAudio" autoplay playsinline></audio>
+  <div class="status"><span class="dot" id="dot"></span><span id="status" role="status" aria-live="polite">offline</span><span id="timer">00:00</span></div>
+  <div class="controls">
+    <button id="callBtn">call</button>
+    <button id="muteBtn" hidden>mute</button>
+    <button id="endBtn" hidden>hang up</button>
+    <button id="restoreBtn" hidden>restore audio</button>
+  </div>
+  <p id="error" role="alert" hidden></p>
+  <details>
+    <summary>diagnostics</summary>
+    <div class="diag">
+      <div><h2>you</h2><p id="localState">offline</p></div>
+      <div><h2>other person</h2><p id="remoteState">offline</p></div>
+    </div>
+    <div class="events"><h2>events</h2><pre id="diagnostics">—</pre></div>
+    <p class="note">Connection losses cannot always be identified. Closing Safari, losing internet, and phone sleep can look identical unless an exit message arrives.</p>
+  </details>
+  <audio id="remoteAudio" autoplay playsinline></audio>
 </main>
 </body>
 </html>
