@@ -184,7 +184,7 @@ ui.muteBtn.addEventListener('click',()=>{const t=track();if(!t)return;t.enabled=
 ui.restoreBtn.addEventListener('click',play);
 ui.micSelect.addEventListener('change',()=>{preferredDevice=ui.micSelect.value;try{if(preferredDevice)localStorage.setItem(STORE,preferredDevice);else localStorage.removeItem(STORE);}catch{}log('microphone preference saved');});
 document.addEventListener('visibilitychange',()=>{log('page '+document.visibilityState);heartbeat();if(!document.hidden){if(pendingAudio)play();if(track()?.readyState==='ended')recoverMicrophone();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}}});
-window.addEventListener('pagehide',()=>{log('pagehide: navigation, tab closure, or browser suspension (unknown)');transmit({type:'exit',reason:'page closed or suspended'});});
+window.addEventListener('pagehide',()=>{log('pagehide: navigation, tab closure, or browser suspension (unknown)');});
 window.addEventListener('online',()=>{log('internet reported online');heartbeat();if(peer?.disconnected&&!peer.destroyed)try{peer.reconnect();}catch{}if(track()?.readyState==='ended')recoverMicrophone();});
 window.addEventListener('offline',()=>{log('internet reported offline');heartbeat();});
 navigator.mediaDevices?.addEventListener?.('devicechange',loadDevices);
