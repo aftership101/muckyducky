@@ -62,3 +62,10 @@ test('session status includes page visibility and microphone interruption', () =
   assert.match(js,/pageHidden:document\.hidden/);
   assert.match(js,/micInterrupted:!!track\(\)\?\.muted/);
 });
+
+test('microphone permission failures show direct-browser guidance', () => {
+  assert.match(html,/id="browserLink"/);
+  assert.match(js,/e\?\.name==='NotAllowedError'/);
+  assert.match(js,/iOS restrictions cannot be overridden/);
+  assert.match(js,/captureError\(e\)/);
+});
