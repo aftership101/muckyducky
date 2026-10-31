@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
-const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn','muteBtn','endBtn','restoreBtn','error','localState','remoteState','diagnostics','remoteAudio'].map(id=>[id,$(id)]));
+const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn','muteBtn','endBtn','restoreBtn','error','browserLink','localState','remoteState','diagnostics','remoteAudio'].map(id=>[id,$(id)]));
 const events=[];
 
 let peer=null,media=null,data=null,stream=null,ids=null,slot=-1,epoch=0,stopping=false,starting=false,connecting=false;
@@ -10,9 +10,19 @@ let recoveryBusy=false,lastRecoveryAt=0,peerRetryAt=0,roomRetryTimer=null,presen
 let lastStats=null,statsBusy=false,quality='unknown',retryCount=0,nextRetry=0,holdRemote=false,lastAudioFlow=0,lastInboundPackets=null,remoteSession=null,sessionId=crypto.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2),recoveryMode=false,heartbeatAt=0,remoteAudioInterruptedAt=0,remotePageHidden=false,remoteMicInterrupted=false,localMicInterruptedAt=0;
 function log(m){events.push(new Date().toLocaleTimeString()+'  '+m);if(events.length>100)events.shift();ui.diagnostics.textContent=events.join('\n');}
 function state(m,t=''){if(ui.status.textContent!==m)log(m);ui.status.textContent=m;ui.dot.className='dot '+t;}
-function problem(m){ui.error.textContent=m;ui.error.hidden=!m;if(m)log('error: '+m);}
+function problem(m,micBlocked=false){ui.error.textContent=m;ui.error.hidden=!m;ui.browserLink.hidden=!micBlocked;if(m)log('error: '+m);}
 function remote(m){remoteState=m;ui.remoteState.textContent=m;}
 function track(){return stream?.getAudioTracks()[0];}
+function captureError(e,prefix='start failed'){
+const denied=e?.name==='NotAllowedError'||e?.name==='SecurityError';
+if(denied){
+const standalone=!!navigator.standalone||!!window.matchMedia?.('(display-mode: standalone)').matches;
+log('mic blocked: '+e.name+'; standalone: '+standalone);
+problem('Microphone access is blocked in this browser context. Open the site directly in Safari, check its microphone permission, and try again. iOS restrictions cannot be overridden by this page.',true);
+return;
+}
+problem(prefix+': '+(e?.message||e?.name||String(e)));
+}
 function refresh(){const t=track();ui.localState.textContent='signaling: '+(peer?.open?'online':'offline')+'\nmic: '+(!t?'off':t.readyState==='ended'?'ended':t.enabled?'on':'muted')+'\npage: '+document.visibilityState+'\nnetwork: '+(navigator.onLine?'online':'offline')+'\ncall: '+(media?.open?'open':'not connected');}
 function transmit(msg){if(data?.open){try{data.send(msg);}catch(e){log('diagnostic send failed');}}}
 function heartbeat(){refresh();transmit({type:'status',session:sessionId,state:ui.localState.textContent,time:Date.now(),pageHidden:document.hidden,micInterrupted:!!track()?.muted});heartbeatAt=Date.now();}
@@ -36,7 +46,7 @@ for(const sender of media?.peerConnection?.getSenders?.()||[]){if(sender.track?.
 const prior=stream;stream=next;watchMicrophone(next);
 if(prior)prior.getTracks().forEach(t=>t.stop());
 log('microphone recovered');problem('');heartbeat();
-}catch(e){log('microphone recovery needs attention: '+e.name);if(e.name==='NotAllowedError'||e.name==='NotFoundError')problem('microphone permission or device unavailable');}
+}catch(e){log('microphone recovery needs attention: '+e.name);if(e.name==='NotAllowedError'||e.name==='SecurityError')captureError(e,'mic recovery failed');else if(e.name==='NotFoundError')problem('microphone not available');}
 finally{recoveryBusy=false;}
 }
 function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;lastStats=null;lastInboundPackets=null;let c=media;media=null;if(c)try{c.close();}catch{}ui.remoteAudio.srcObject=null;ui.restoreBtn.hidden=true;pendingAudio=false;stopClock();}
@@ -196,7 +206,7 @@ if(navigator.audioSession&&'type' in navigator.audioSession){try{navigator.audio
 stream=await microphone();
 if(ticket!==epoch){stream.getTracks().forEach(t=>t.stop());stream=null;return;}
 watchMicrophone(stream);controls(true);refresh();openPeer(0,ticket);
-}catch(e){state('offline');problem('start failed: '+e.message);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+}catch(e){state('offline');captureError(e);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
 finally{starting=false;ui.callBtn.disabled=false;}
 }
 ui.callBtn.addEventListener('click',begin);
