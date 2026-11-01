@@ -69,3 +69,13 @@ test('microphone permission failures show direct-browser guidance', () => {
   assert.match(js,/iOS restrictions cannot be overridden/);
   assert.match(js,/captureError\(e\)/);
 });
+
+test('returning browsers have spare peer IDs and persistent device identity', () => {
+  assert.match(js,/\['a','b','c','d'\]\.map/);
+  assert.match(js,/localStorage\.getItem\('muckyducky-device-v1'\)/);
+  assert.match(js,/metadata:\{device:deviceId,session:sessionId\}/);
+  assert.match(js,/incomingDevice!==remoteDevice/);
+  assert.match(js,/c\.metadata\.session===remoteSession/);
+  assert.match(js,/if\(slot>=2\)dialTargetIndex=1-dialTargetIndex/);
+  assert.match(html,/app\.js\?v=17/);
+});
