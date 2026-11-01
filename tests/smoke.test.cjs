@@ -49,12 +49,12 @@ test('no unexpected external dependencies other than PeerJS', () => {
 });
 
 test('audio-session interruptions do not trigger microphone reacquisition', () => {
-  assert.match(js,/if\(old&&old\.readyState==='live'\)return/);
-  assert.match(js,/if\(track\(\)\?\.readyState==='ended'\)\{recoverMicrophone\(\);\}/);
+  assert.match(js,/if\(old&&old\.readyState==='live'&&\(!force\|\|!old\.muted\)\)return/);
+  assert.match(js,/scheduleMicRecovery\('health check'\)/);
   assert.match(js,/microphone interrupted by another app or system; preserving call/);
 });
 test('a missing heartbeat and silent RTP alone get a longer grace period', () => {
-  assert.match(js,/quality==='dead'&&Date\.now\(\)-lastRemote>55000/);
+  assert.match(js,/quality==='dead'&&Date\.now\(\)-lastRemote>90000/);
   assert.match(js,/\['failed','closed'\]/);
   assert.doesNotMatch(js,/quality==='dead'\|\|/);
 });
@@ -77,5 +77,17 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
   assert.match(js,/if\(slot>=2\)dialTargetIndex=1-dialTargetIndex/);
-  assert.match(html,/app\.js\?v=17/);
+  assert.match(html,/app\.js\?v=18/);
+});
+
+test('interruption resilience and recovery are guarded',()=>{
+assert.match(js,/t\.enabled=!userMuted/);
+assert.match(js,/replacement\.enabled=!userMuted/);
+assert.match(js,/const delays=\[1800,5000,10000,20000,30000\]/);
+assert.match(js,/s\.addEventListener\('statechange',syncAudioSession\)/);
+assert.match(js,/scheduleAudioResume\('playback paused'\)/);
+assert.match(js,/resumeCall\('audio device changed'\)/);
+assert.match(js,/resumeCall\('page shown'\)/);
+assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
+assert.match(html,/app\.js\?v=18/);
 });
