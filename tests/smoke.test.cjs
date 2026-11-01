@@ -69,3 +69,11 @@ test('microphone permission failures show direct-browser guidance', () => {
   assert.match(js,/iOS restrictions cannot be overridden/);
   assert.match(js,/captureError\(e\)/);
 });
+
+test('audio session statechange detects interruption and attempts resume', () => {
+  assert.match(js,/session\.addEventListener\('statechange',update\)/);
+  assert.match(js,/audioInterrupted=next==='interrupted'/);
+  assert.match(js,/resumeAudio\('audio session '\+next\)/);
+  assert.match(js,/if\(!ui\.remoteAudio\.srcObject\|\|audioInterrupted\)return/);
+  assert.match(html,/app\.js\?v=14/);
+});
