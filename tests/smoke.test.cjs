@@ -77,3 +77,11 @@ test('audio session statechange detects interruption and attempts resume', () =>
   assert.match(js,/if\(!ui\.remoteAudio\.srcObject\|\|audioInterrupted\)return/);
   assert.match(html,/app\.js\?v=14/);
 });
+
+test('interrupted live microphone gets one deferred foreground refresh', () => {
+  assert.match(js,/force&&old\.muted&&!document\.hidden&&!audioInterrupted/);
+  assert.match(js,/recoverMicrophone\(true\)/);
+  assert.match(js,/replacement\.enabled=!userMuted/);
+  assert.match(js,/syncAudioSession\(\)/);
+  assert.match(js,/clearTimeout\(micResumeTimer\)/);
+});
