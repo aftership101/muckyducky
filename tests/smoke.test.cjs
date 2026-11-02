@@ -28,7 +28,7 @@ test('explicit remote hangup is handled immediately', () => {
   assert.match(js,/holdRemote=true;closeMedia\(\)/);
 });
 test('heartbeat absence alone cannot remove active audio', () => {
-  assert.match(js,/quality==='dead'/);
+  assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
   assert.match(js,/inspectAudio\(\)/);
 });
 test('recovery timers and stale-session protections are present', () => {
@@ -89,7 +89,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=18/);
+assert.match(html,/app\.js\?v=19/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
