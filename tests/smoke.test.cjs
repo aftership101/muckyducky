@@ -43,7 +43,7 @@ test('no embedded PIN or hardcoded shared secret', () => {
 });
 test('no unexpected external dependencies other than PeerJS', () => {
   const src=[...html.matchAll(/<script\b[^>]*src="([^"]+)"/g)].map(m=>m[1]);
-  assert.equal(src.length,2);
+  assert.equal(src.length,3);
   assert.match(src[0],/^https:\/\/cdn\.jsdelivr\.net\/npm\/peerjs@/);
   assert.match(src[1],/^app\.js\?v=/);
 });
@@ -99,3 +99,5 @@ assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
 assert.match(html,/app\.js\?v=19/);
 });
+
+test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","___"\]/);});
