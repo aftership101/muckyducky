@@ -100,4 +100,6 @@ assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
 assert.match(html,/app\.js\?v=19/);
 });
 
-test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","___"\]/);});
+test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
+
+test("online counter has an independent image fallback",()=>{assert.match(html,/id="_waumdc"/);assert.match(html,/id="onlineFallback"/);assert.match(html,/whos\.amung\.us\/swidget\/mckdcky26q2\.png/);});
