@@ -54,7 +54,7 @@ test('audio-session interruptions do not trigger microphone reacquisition', () =
   assert.match(js,/microphone interrupted by another app or system; preserving call/);
 });
 test('a missing heartbeat and silent RTP alone get a longer grace period', () => {
-  assert.match(js,/quality==='dead'&&Date\.now\(\)-lastRemote>90000/);
+  assert.match(js,/media\?\.peerConnection&&\['failed','closed'\]\.includes\(media\.peerConnection\.connectionState\)/);
   assert.match(js,/\['failed','closed'\]/);
   assert.doesNotMatch(js,/quality==='dead'\|\|/);
 });
@@ -77,7 +77,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
   assert.match(js,/if\(slot>=2\)dialTargetIndex=1-dialTargetIndex/);
-  assert.match(html,/app\.js\?v=18/);
+  assert.match(html,/app\.js\?v=19/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -90,4 +90,12 @@ assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
 assert.match(html,/app\.js\?v=18/);
+});
+
+test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
+assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
+assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
+assert.match(js,/function startClock\(\)/);
+assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
+assert.match(html,/app\.js\?v=19/);
 });
