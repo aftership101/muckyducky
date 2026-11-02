@@ -205,7 +205,7 @@ if(lastInboundPackets===null||count>lastInboundPackets)lastAudioFlow=Date.now();
 lastInboundPackets=count;
 const age=Date.now()-lastAudioFlow;
 quality=age>15000?'dead':age>6500?'degraded':'good';
-if(age>30000&&!document.hidden&&!audioSessionInterrupted&&pc.connectionState!=='connected'&&pc.iceConnectionState!=='connected'&&pc.iceConnectionState!=='completed'){log('ICE and RTP stalled; rebuilding');closeMedia();state('reconnecting','wait');}
+if(age>30000&&!document.hidden&&!audioSessionInterrupted&&(pc.connectionState==='failed'||pc.connectionState==='closed'||pc.iceConnectionState==='failed')){log('transport failed and RTP stalled; rebuilding');closeMedia();state('reconnecting','wait');}
 const previous=lastStats?.quality;if(quality!==previous)log('audio flow: '+quality+'; jitter '+Math.round(jitter*1000)+'ms'+(rtt!==null?', RTT '+Math.round(rtt*1000)+'ms':''));
 lastStats={quality,packets:count,loss,jitter,rtt};
 }else{quality=pc.connectionState==='connected'?'unknown':'dead';}
@@ -227,10 +227,10 @@ healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
 heartbeat();
 inspectAudio();
-if(hadPresence&&lastRemote&&!presenceLost&&!document.hidden&&!audioSessionInterrupted&&Date.now()-lastRemote>60000&&((media?.peerConnection&&['failed','closed'].includes(media.peerConnection.connectionState))||(quality==='dead'&&Date.now()-lastRemote>90000))){
+if(hadPresence&&lastRemote&&!presenceLost&&!document.hidden&&!audioSessionInterrupted&&Date.now()-lastRemote>60000&&media?.peerConnection&&['failed','closed'].includes(media.peerConnection.connectionState)){
   presenceLost=true;
-  log('remote transport failed or media and heartbeat absent for 55s; removing stale call');
-  remote('disconnected\nreason: connection failed or prolonged total signal loss');
+  log('remote transport failed and signaling absent; reconnecting');
+  remote('reconnecting\nreason: transport failure');
   closeMedia();
   const stale=data;data=null;if(stale)try{stale.close();}catch{}
   state('waiting for rejoin','wait');
