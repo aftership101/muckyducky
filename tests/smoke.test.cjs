@@ -75,7 +75,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/localStorage\.getItem\('muckyducky-device-v1'\)/);
   assert.match(js,/metadata:\{device:deviceId,session:sessionId\}/);
   assert.match(js,/incomingDevice!==remoteDevice/);
-  assert.match(js,/c\.metadata\.session===remoteSession/);
+  assert.match(js,/incomingSession===previousSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
   assert.match(html,/app\.js\?v=22/);
 });
