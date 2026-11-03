@@ -19,7 +19,16 @@ const denied=e?.name==='NotAllowedError'||e?.name==='SecurityError';
 if(denied){
 const standalone=!!navigator.standalone||!!window.matchMedia?.('(display-mode: standalone)').matches;
 log('mic blocked: '+e.name+'; standalone: '+standalone);
-problem('Microphone access is blocked in this browser context. Open the site directly in Safari, check its microphone permission, and try again. iOS restrictions cannot be overridden by this page.',true);
+const ios=/iPad|iPhone|iPod/.test(navigator.userAgent||'');
+problem(ios?'Microphone access is blocked in this browser context. Open the site directly in Safari, check its microphone permission, and try again. iOS restrictions cannot be overridden by this page.':'Microphone access is blocked. Allow microphone access in Vivaldi or your browser site settings and check Linux microphone permissions.',ios);
+return;
+}
+if(e?.name==='NotReadableError'||e?.name==='TrackStartError'){
+problem('Microphone is unavailable to the browser. On Linux, check the selected input device, PipeWire/PulseAudio capture routing and Vivaldi microphone permission.');
+return;
+}
+if(e?.name==='NotFoundError'||e?.name==='DevicesNotFoundError'){
+problem('No microphone detected. Check the Linux audio input device and browser permissions.');
 return;
 }
 problem(prefix+': '+(e?.message||e?.name||String(e)));
@@ -346,7 +355,7 @@ try{capture=await navigator.mediaDevices.getUserMedia({audio:constraints,video:f
 catch(e){
 if(e.name!=='OverconstrainedError'&&e.name!=='TypeError')throw e;
 log('advanced audio constraints unavailable; using basic microphone');
-capture=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+capture=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
 }
 const voice=capture.getAudioTracks()[0];
 if(voice&&'contentHint' in voice){try{voice.contentHint='speech';}catch{}}
@@ -398,6 +407,7 @@ ui.restoreBtn.addEventListener('click',()=>{requestAudioSession();play();if(trac
 document.addEventListener('visibilitychange',()=>{log('page '+document.visibilityState);heartbeat();if(document.hidden){clearTimeout(micRetryTimer);micRetryTimer=null;}else resumeCall('page visible');});
 window.addEventListener('pagehide',()=>{log('pagehide: navigation, tab closure, or browser suspension (unknown)');});
 window.addEventListener('pageshow',()=>{log('page resumed');refresh();resumeCall('page shown');});
+window.addEventListener('focus',()=>{if(stream)resumeCall('window focused');});
 window.addEventListener('online',()=>{log('internet reported online');heartbeat();resumeCall('network online');});
 window.addEventListener('offline',()=>{log('internet reported offline');quality='degraded';heartbeat();});
 navigator.mediaDevices?.addEventListener?.('devicechange',()=>{log('audio devices changed');refresh();resumeCall('audio device changed');});
