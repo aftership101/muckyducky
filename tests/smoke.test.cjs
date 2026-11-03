@@ -71,13 +71,13 @@ test('microphone permission failures show direct-browser guidance', () => {
 });
 
 test('returning browsers have spare peer IDs and persistent device identity', () => {
-  assert.match(js,/\['a','b','c','d'\]\.map/);
+  assert.match(js,/const primary=\['a','b'\]\.map/);
   assert.match(js,/localStorage\.getItem\('muckyducky-device-v1'\)/);
   assert.match(js,/metadata:\{device:deviceId,session:sessionId\}/);
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
   assert.match(js,/if\(slot>=2\)dialTargetIndex=1-dialTargetIndex/);
-  assert.match(html,/app\.js\?v=19/);
+  assert.match(html,/app\.js\?v=20/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -89,7 +89,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=19/);
+assert.match(html,/app\.js\?v=20/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
@@ -97,9 +97,11 @@ assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
 assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
 assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
-assert.match(html,/app\.js\?v=19/);
+assert.match(html,/app\.js\?v=20/);
 });
 
 test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
 
 test("online counter has an independent image fallback",()=>{assert.match(html,/id="_waumdc"/);assert.match(html,/id="onlineFallback"/);assert.match(html,/whos\.amung\.us\/swidget\/mckdcky26q2\.png/);});
+
+test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[\.\.\.primary,fresh\(\),fresh\(\)\]/);assert.match(js,/openPeer\(2,ticket\)/);assert.match(js,/index>=2/);});
