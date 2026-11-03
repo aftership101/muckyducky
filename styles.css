@@ -5,3 +5,5 @@
 #onlineCount:has(a) #onlineFallback{display:none}#onlineCount img{width:80px;height:15px;object-fit:contain}#onlineCount{min-height:15px}
 
 #scanBtn{font-size:12px;padding:9px 11px;border-color:#555;color:#ccc}
+
+#slotCounts{margin-top:15px;color:#aaa;font:12px/1.8 ui-monospace,Consolas,monospace;white-space:pre-line;background:#171717;border:1px solid #303030;padding:10px;border-radius:3px}#slotCounts::after{content:"Counts show only confirmed peers; unknown does not mean empty.";display:block;font:11px/1.5 Arial,Helvetica,sans-serif;color:#777;margin-top:7px}
