@@ -48,7 +48,7 @@ refresh();
 }
 function refresh(){
 const t=track();
-ui.scanBtn.hidden=!stream||!!media?.open;
+ui.scanBtn.hidden=false;ui.scanBtn.disabled=!!media?.open||starting;
 const slots=Object.entries(targetHistory).map(([k,v])=>k+': '+v).join(', ')||'none';
 ui.localState.textContent='signaling: '+(peer?.open?'online':'offline')+
 '\nmic: '+(!t?'off':t.readyState==='ended'?'ended':t.muted?'interrupted':t.enabled?'on':'muted')+
@@ -179,7 +179,7 @@ syncAudioSession();
 }
 function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;lastStats=null;lastInboundPackets=null;let c=media;media=null;if(c)try{c.close();}catch{}ui.remoteAudio.srcObject=null;ui.restoreBtn.hidden=true;pendingAudio=false;stopClock();}
 function clearTimers(){clearInterval(healthTimer);clearInterval(redialTimer);clearTimeout(roomRetryTimer);clearTimeout(micRetryTimer);clearTimeout(audioResumeTimer);micRetryTimer=audioResumeTimer=null;healthTimer=redialTimer=roomRetryTimer=null;}
-function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.scanBtn.hidden=!active;ui.callBtn.disabled=false;}
+function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.scanBtn.hidden=false;ui.callBtn.disabled=false;}
 function teardown(reason='hang up button pressed'){
 stopping=true;epoch++;transmit({type:'exit',reason});userMuted=false;micRetryCount=0;audioSessionInterrupted=false;transportFailedAt=0;log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;const p=peer;peer=null;if(d||p)setTimeout(()=>{if(d)try{d.close();}catch{}if(p)try{p.destroy();}catch{}},650);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;remoteDevice=null;dialTargetIndex=0;dialTargetName='none';targetHistory={};occupiedSlots.clear();manualScan=false;retryCount=0;nextRetry=0;lastAudioFlow=0;remoteAudioInterruptedAt=0;remotePageHidden=false;remoteMicInterrupted=false;localMicInterruptedAt=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
 }
@@ -360,7 +360,7 @@ t.addEventListener('unmute',()=>{if(stream!==s)return;clearTimeout(micRetryTimer
 t.addEventListener('ended',()=>{if(stopping||stream!==s)return;log('microphone ended; attempting recovery');refresh();scheduleMicRecovery('track ended');});
 }
 }
-async function begin(){
+async function begin(scanRequested=false){
 if(starting||stream||peer)return;
 starting=true;ui.callBtn.disabled=true;problem('');
 try{
@@ -372,7 +372,7 @@ state('starting','wait');
 const ticket=++epoch;
 const newIds=await roomIds(password);
 if(ticket!==epoch)return;
-ids=newIds;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();manualScan=false;
+ids=newIds;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();manualScan=scanRequested;
 watchAudioSession();
 stream=await microphone();
 if(ticket!==epoch){stream.getTracks().forEach(t=>t.stop());stream=null;return;}
@@ -380,11 +380,12 @@ userMuted=false;watchMicrophone(stream);controls(true);refresh();openPeer(0,tick
 }catch(e){state('offline');captureError(e);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
 finally{starting=false;ui.callBtn.disabled=false;}
 }
-ui.callBtn.addEventListener('click',begin);
+ui.callBtn.addEventListener('click',()=>begin(false));
 ui.endBtn.addEventListener('click',()=>teardown());
 ui.muteBtn.addEventListener('click',()=>{const t=track();if(!t)return;userMuted=!userMuted;t.enabled=!userMuted;ui.muteBtn.textContent=userMuted?'unmute':'mute';log(userMuted?'muted':'unmuted');heartbeat();});
 ui.scanBtn.addEventListener('click',()=>{
-if(stopping||!stream||media?.open)return;
+if(stopping||media?.open)return;
+if(!stream){begin(true);return;}
 manualScan=true;
 if(media){closeMedia();}
 if(dialTargetName!=='none')advanceTarget('skipped manually');
