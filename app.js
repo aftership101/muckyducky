@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
-const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn','muteBtn','endBtn','scanBtn','restoreBtn','error','browserLink','localState','remoteState','diagnostics','remoteAudio'].map(id=>[id,$(id)]));
+const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn','muteBtn','endBtn','scanBtn','slotCounts','restoreBtn','error','browserLink','localState','remoteState','diagnostics','remoteAudio'].map(id=>[id,$(id)]));
 const events=[];
 const deviceId=(()=>{try{let id=localStorage.getItem('muckyducky-device-v1');if(!id){id=crypto.randomUUID();localStorage.setItem('muckyducky-device-v1',id);}return id;}catch{return crypto.randomUUID?.()||String(Date.now())+'-'+Math.random();}})();
 
@@ -33,15 +33,34 @@ return;
 }
 problem(prefix+': '+(e?.message||e?.name||String(e)));
 }
-function targetCandidates(){
-if(!ids||!peer)return [];
+function allRoomSlots(){
+if(!ids)return [];
 const original=ids[0];
 return [
 {label:'A',id:ids[0]},
 {label:'B',id:ids[1]},
 {label:'C',id:original.slice(0,-1)+'c'},
 {label:'D',id:original.slice(0,-1)+'d'}
-].filter(t=>t.id!==peer.id);
+];
+}
+function targetCandidates(){
+if(!peer?.id)return [];
+return allRoomSlots().filter(t=>t.id!==peer.id);
+}
+function updateSlotCounts(){
+ui.slotCounts.hidden=!stream;
+if(!stream)return;
+const connectedPeer=media?.open?media.peer:null;
+const lines=allRoomSlots().map(t=>{
+if(t.id===peer?.id)return t.label+': 1 confirmed (you)';
+if(t.id===connectedPeer)return t.label+': 1 confirmed (connected)';
+const result=targetHistory[t.label];
+if(result==='trying')return t.label+': checking… (count unknown)';
+if(occupiedSlots.has(t.label))return t.label+': ID occupied (count unknown)';
+return t.label+': 0 confirmed (actual count unknown)';
+});
+if(slot>=2&&peer?.open)lines.push('backup: 1 confirmed (you)');
+ui.slotCounts.textContent=lines.join('\n');
 }
 function markTarget(label,result){
 if(label&&label!=='none')targetHistory[label]=result;
@@ -57,6 +76,7 @@ refresh();
 }
 function refresh(){
 const t=track();
+updateSlotCounts();
 ui.scanBtn.hidden=false;ui.scanBtn.disabled=!!media?.open||starting;
 const slots=Object.entries(targetHistory).map(([k,v])=>k+': '+v).join(', ')||'none';
 ui.localState.textContent='signaling: '+(peer?.open?'online':'offline')+
@@ -233,6 +253,7 @@ if(stopping||holdRemote||(slot<1&&!manualScan)||!peer?.open||!stream||media)retu
 const targets=targetCandidates();
 if(!targets.length)return;
 const selected=targets[dialTargetIndex%targets.length];
+if(!selected||selected.id===peer.id){log('skipped own peer ID');advanceTarget('self skipped');return;}
 dialTargetName=selected.label;
 markTarget(selected.label,'trying');
 log('trying room slot '+selected.label);
@@ -313,7 +334,7 @@ const old=data;data=null;if(old)try{old.close();}catch{}
 }
 if(incomingDevice)remoteDevice=incomingDevice;
 if(incomingSession)remoteSession=incomingSession;
-dialTargetName=c.peer===ids?.[1]?'B':c.peer===ids?.[0]?'A':'incoming';
+dialTargetName=allRoomSlots().find(t=>t.id===c.peer)?.label||'incoming';
 mediaEvents(c);c.answer(stream);
 });
 p.on('connection',c=>{
