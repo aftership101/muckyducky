@@ -77,7 +77,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
-  assert.match(html,/app\.js\?v=21/);
+  assert.match(html,/app\.js\?v=22/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -89,7 +89,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=21/);
+assert.match(html,/app\.js\?v=22/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
@@ -97,14 +97,14 @@ assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
 assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
 assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
-assert.match(html,/app\.js\?v=21/);
+assert.match(html,/app\.js\?v=22/);
 });
 
 test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
 
 test("online counter has an independent image fallback",()=>{assert.match(html,/id="_waumdc"/);assert.match(html,/id="onlineFallback"/);assert.match(html,/whos\.amung\.us\/swidget\/mckdcky26q2\.png/);});
 
-test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[\.\.\.primary,fresh\(\),fresh\(\)\]/);assert.match(js,/openPeer\(2,ticket\)/);assert.match(js,/index>=2/);});
+test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[\.\.\.primary,fresh\(\),fresh\(\)\]/);assert.match(js,/openPeer\(2,ticket\)/);assert.match(js,/if\(p!==peer\|\|stopping\|\|!stream\)/);});
 
 test('attempts each legacy room slot without claiming online status',()=>{
 assert.match(js,/label:'A',id:ids\[0\]/);
@@ -115,5 +115,15 @@ assert.match(js,/filter\(t=>t\.id!==peer\.id\)/);
 assert.match(js,/slot attempts: /);
 assert.match(js,/dialTargetIndex=\(dialTargetIndex\+1\)%targets\.length/);
 assert.match(js,/if\(!data&&media\?\.open\)dialData\(\)/);
-assert.match(html,/app\.js\?v=21/);
+assert.match(html,/app\.js\?v=22/);
+});
+
+test('occupied IDs never imply active users and backup slots accept calls',()=>{
+assert.match(js,/occupiedSlots\.add/);
+assert.match(js,/may be stale/);
+assert.doesNotMatch(js,/index>=2\)\{c\.close\(\)/);
+assert.match(js,/returning device taking over unresponsive call/);
+assert.match(js,/rejected incoming duplicate while existing call is protected/);
+assert.match(js,/remote session changed; preserving media/);
+assert.match(html,/app\.js\?v=22/);
 });
