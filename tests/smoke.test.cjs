@@ -77,7 +77,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/incomingSession===previousSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
-  assert.match(html,/app\.js\?v=23/);
+  assert.match(html,/app\.js\?v=24/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -89,7 +89,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=23/);
+assert.match(html,/app\.js\?v=24/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
@@ -97,7 +97,7 @@ assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
 assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
 assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
-assert.match(html,/app\.js\?v=23/);
+assert.match(html,/app\.js\?v=24/);
 });
 
 test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
@@ -115,7 +115,7 @@ assert.match(js,/filter\(t=>t\.id!==peer\.id\)/);
 assert.match(js,/slot attempts: /);
 assert.match(js,/dialTargetIndex=\(dialTargetIndex\+1\)%targets\.length/);
 assert.match(js,/if\(!data&&media\?\.open\)dialData\(\)/);
-assert.match(html,/app\.js\?v=23/);
+assert.match(html,/app\.js\?v=24/);
 });
 
 test('occupied IDs never imply active users and backup slots accept calls',()=>{
@@ -125,7 +125,7 @@ assert.doesNotMatch(js,/index>=2\)\{c\.close\(\)/);
 assert.match(js,/returning device taking over unresponsive call/);
 assert.match(js,/rejected incoming duplicate while existing call is protected/);
 assert.match(js,/remote session changed; preserving media/);
-assert.match(html,/app\.js\?v=23/);
+assert.match(html,/app\.js\?v=24/);
 });
 
 test('manual scan works when user owns the waiting A slot',()=>{
@@ -136,5 +136,14 @@ test('manual scan works when user owns the waiting A slot',()=>{
  assert.match(js,/if\(stopping\|\|!stream\|\|media\?\.open\)return/);
  assert.match(js,/advanceTarget\('skipped manually'\)/);
  assert.match(js,/manualScan=false/);
- assert.match(html,/app\.js\?v=23/);
+ assert.match(html,/app\.js\?v=24/);
+});
+
+test('scan button is available before a call and can start searching',()=>{
+ assert.match(html,/<button id="scanBtn">scan slots<\/button>/);
+ assert.match(js,/async function begin\(scanRequested=false\)/);
+ assert.match(js,/if\(!stream\)\{begin\(true\);return;\}/);
+ assert.match(js,/manualScan=scanRequested/);
+ assert.match(js,/ui\.scanBtn\.hidden=false/);
+ assert.match(html,/app\.js\?v=24/);
 });
