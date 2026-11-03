@@ -77,7 +77,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
-  assert.match(html,/app\.js\?v=20/);
+  assert.match(html,/app\.js\?v=21/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -89,7 +89,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=20/);
+assert.match(html,/app\.js\?v=21/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
@@ -97,7 +97,7 @@ assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
 assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
 assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
-assert.match(html,/app\.js\?v=20/);
+assert.match(html,/app\.js\?v=21/);
 });
 
 test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
