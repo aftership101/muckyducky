@@ -31,7 +31,9 @@ async function roomIds(password){
 const bytes=new TextEncoder().encode('muckyducky-private-room-v2\u0000'+password);
 const digest=await crypto.subtle.digest('SHA-256',bytes);
 const h=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
-return ['a','b','c','d'].map(s=>'md-'+h.slice(0,42)+'-'+s);
+const primary=['a','b'].map(s=>'md-'+h.slice(0,42)+'-'+s);
+const fresh=()=> 'md-'+h.slice(0,32)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));
+return [...primary,fresh(),fresh()];
 }
 function stopClock(){clearInterval(clockTimer);clockTimer=null;ui.timer.textContent='00:00';}
 function startClock(){if(clockTimer)return;startedAt=Date.now();clockTimer=setInterval(()=>{const n=Math.floor((Date.now()-startedAt)/1000);ui.timer.textContent=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');},1000);}
@@ -267,11 +269,11 @@ if(p!==peer||ticket!==epoch||stopping)return;
 log('PeerJS error: '+e.type);
 if(e.type==='unavailable-id'&&index<ids.length-1){try{p.destroy();}catch{}if(peer===p)peer=null;openPeer(index+1,ticket);return;}
 if(e.type==='unavailable-id'&&index===ids.length-1){
-  log('all call slots occupied; waiting for stale sessions to expire');
+  log('fresh reconnect identifiers unavailable; creating new identifiers');
   state('waiting for room','wait');
   try{p.destroy();}catch{}if(peer===p)peer=null;
   clearTimeout(roomRetryTimer);
-  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream)openPeer(0,ticket);},2500);
+  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[2]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[3]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(2,ticket);}},2500);
   return;
 }
 if(e.type==='peer-unavailable'){if(media)closeMedia();if(slot>=2)dialTargetIndex=1-dialTargetIndex;holdRemote=false;state('waiting','wait');return;}
