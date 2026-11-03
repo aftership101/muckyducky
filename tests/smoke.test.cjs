@@ -133,7 +133,7 @@ test('manual scan works when user owns the waiting A slot',()=>{
  assert.match(js,/manualScan=true/);
  assert.match(js,/slot>=1\|\|manualScan/);
  assert.match(js,/slot<1&&!manualScan/);
- assert.match(js,/if\(stopping\|\|!stream\|\|media\?\.open\)return/);
+ assert.match(js,/if\(stopping\|\|media\?\.open\)return/);
  assert.match(js,/advanceTarget\('skipped manually'\)/);
  assert.match(js,/manualScan=false/);
  assert.match(html,/app\.js\?v=25/);
