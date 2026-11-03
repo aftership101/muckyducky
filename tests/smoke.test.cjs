@@ -76,7 +76,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/metadata:\{device:deviceId,session:sessionId\}/);
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/c\.metadata\.session===remoteSession/);
-  assert.match(js,/if\(slot>=2\)dialTargetIndex=1-dialTargetIndex/);
+  assert.match(js,/advanceTarget\('no answer'\)/);
   assert.match(html,/app\.js\?v=20/);
 });
 
@@ -105,3 +105,15 @@ test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(htm
 test("online counter has an independent image fallback",()=>{assert.match(html,/id="_waumdc"/);assert.match(html,/id="onlineFallback"/);assert.match(html,/whos\.amung\.us\/swidget\/mckdcky26q2\.png/);});
 
 test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[\.\.\.primary,fresh\(\),fresh\(\)\]/);assert.match(js,/openPeer\(2,ticket\)/);assert.match(js,/index>=2/);});
+
+test('attempts each legacy room slot without claiming online status',()=>{
+assert.match(js,/label:'A',id:ids\[0\]/);
+assert.match(js,/label:'B',id:ids\[1\]/);
+assert.match(js,/label:'C',id:original\.slice\(0,-1\)\+'c'/);
+assert.match(js,/label:'D',id:original\.slice\(0,-1\)\+'d'/);
+assert.match(js,/filter\(t=>t\.id!==peer\.id\)/);
+assert.match(js,/slot attempts: /);
+assert.match(js,/dialTargetIndex=\(dialTargetIndex\+1\)%targets\.length/);
+assert.match(js,/if\(!data&&media\?\.open\)dialData\(\)/);
+assert.match(html,/app\.js\?v=21/);
+});
