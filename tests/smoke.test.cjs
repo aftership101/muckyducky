@@ -184,7 +184,7 @@ test('admin mode does not request a microphone for password 1',()=>{
  assert.match(html,/id="adminPanel"/);
  assert.match(html,/id="adminMetrics"/);
  assert.match(html,/id="adminRoomRows"/);
- assert.match(html,/presence\.js\?v=1/);
+ assert.match(html,/presence\.js\?v=2/);
  assert.match(js,/ui\.password\.value==='1'/);
  assert.match(js,/muckyducky:admin-open/);
  assert.match(js,/muckyducky:presence/);
@@ -198,6 +198,7 @@ test('presence collector tracks reported rooms and call participation',()=>{
  assert.match(presence,/Rooms with calls/);
  assert.match(presence,/type:'presence'/);
  assert.match(presence,/type:'snapshot'/);
+ assert.match(presence,/previousConnected!==mediaConnected\)sendReport\(\)/);
  assert.match(presence,/const STALE_MS=27000/);
  assert.match(presence,/crypto\.subtle\.digest\('SHA-256'/);
  assert.match(presence,/clearReporter\(\)/);
