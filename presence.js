@@ -29,8 +29,9 @@ function clearReporter(){
 }
 function onPresence(d){
   const next=typeof d?.room==='string'&&/^md-[a-f0-9]{42}-a$/.test(d.room)?d.room:null;
+  const previousConnected=mediaConnected;
   mediaConnected=!!d?.connected;
-  if(next===roomPrimary)return;
+  if(next===roomPrimary){if(previousConnected!==mediaConnected)sendReport();return;}
   roomPrimary=next;roomTag=null;
   const generation=++roomGeneration;
   clearReporter();
