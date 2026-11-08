@@ -105,6 +105,7 @@ nextRetry=Date.now()+1200;
 refresh();
 }
 function refresh(){
+window.dispatchEvent(new CustomEvent('muckyducky:presence',{detail:{room:stream?activeRoomPrimary:null,connected:!!media?.open}}));
 const t=track();
 updateSlotCounts();
 ui.scanBtn.hidden=false;ui.scanBtn.disabled=!!media?.open||starting;
@@ -478,6 +479,10 @@ t.addEventListener('ended',()=>{if(stopping||stream!==s)return;log('microphone e
 }
 async function begin(scanRequested=false,options={}){
 if(starting||stream||peer)return;
+if(!options.roomPrimary&&ui.password.value==='1'){
+window.dispatchEvent(new Event('muckyducky:admin-open'));
+return;
+}
 starting=true;ui.callBtn.disabled=true;problem('');
 try{
 if(!window.Peer)throw Error('PeerJS did not load');
