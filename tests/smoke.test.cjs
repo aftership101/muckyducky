@@ -7,6 +7,7 @@ const path = require('node:path');
 const root = path.join(__dirname,'..');
 const js = fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html = fs.readFileSync(path.join(root,'index.html'),'utf8');
+const presence=fs.readFileSync(path.join(root,'presence.js'),'utf8');
 
 test('JavaScript parses', () => assert.doesNotThrow(() => new vm.Script(js)));
 test('all required interface controls exist', () => {
@@ -74,7 +75,7 @@ test('microphone permission failures show direct-browser guidance', () => {
 test('returning browsers have spare peer IDs and persistent device identity', () => {
   assert.match(js,/return idsFromPrimary\(/);
   assert.match(js,/localStorage\.getItem\('muckyducky-device-v1'\)/);
-  assert.match(js,/metadata:\{device:deviceId,session:sessionId\}/);
+  assert.match(js,/metadata:\{device:deviceId,session:sessionId,rejoin:refreshRejoinActive\}/);
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/incomingSession===previousSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
@@ -189,4 +190,17 @@ test('admin mode does not request a microphone for password 1',()=>{
  assert.match(js,/muckyducky:presence/);
  assert.match(js,/room:stream\?activeRoomPrimary:null/);
  assert.match(html,/app\.js\?v=30/);
+});
+
+test('presence collector tracks reported rooms and call participation',()=>{
+ assert.doesNotThrow(()=>new vm.Script(presence));
+ assert.match(presence,/HUB_ID='md-presence-admin-v1'/);
+ assert.match(presence,/Rooms with calls/);
+ assert.match(presence,/type:'presence'/);
+ assert.match(presence,/type:'snapshot'/);
+ assert.match(presence,/const STALE_MS=27000/);
+ assert.match(presence,/crypto\.subtle\.digest\('SHA-256'/);
+ assert.match(presence,/clearReporter\(\)/);
+ assert.match(presence,/password\.value==='1'/);
+ assert.match(html,/Live, anonymous reports/);
 });
