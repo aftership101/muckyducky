@@ -7,3 +7,19 @@
 #scanBtn{font-size:12px;padding:9px 11px;border-color:#555;color:#ccc}
 
 #slotCounts{margin-top:15px;color:#aaa;font:12px/1.8 ui-monospace,Consolas,monospace;white-space:pre-line;background:#171717;border:1px solid #303030;padding:10px;border-radius:3px}#slotCounts::after{content:"Empty means PeerJS reported no peer registered at the last check; results can change.";display:block;font:11px/1.5 Arial,Helvetica,sans-serif;color:#777;margin-top:7px}
+
+/* Lightweight presence dashboard; separate from call controls. */
+#adminPanel{margin-top:28px} .adminHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.adminHeading h1{margin:0;font-size:17px;font-weight:600;color:#ddd}.adminHeading button{padding:5px 12px;font-size:12px}
+#adminStatus{font-size:12px;color:#aab2bd;margin:8px 0 18px}
+.adminMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 24px}
+.adminMetric{background:#181818;border:1px solid #333;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.adminMetric strong{font-size:24px;font-variant-numeric:tabular-nums;font-weight:600;color:#e9e9e9}
+.adminMetric span{font-size:11px;color:#aaa}
+#adminPanel h2{font-size:13px;margin:16px 0 10px}
+.adminTableWrap{overflow-x:auto;border:1px solid #333;border-radius:4px}
+.adminTable{width:100%;border-collapse:collapse;text-align:left;font-size:12px;color:#ccc}
+.adminTable th{font-weight:normal;color:#999;background:#1b1b1b}
+.adminTable th,.adminTable td{padding:10px 8px;border-bottom:1px solid #292929}
+.adminTable tbody tr:last-child td{border-bottom:0}
+.adminCaution{font-size:11px;color:#888;margin-top:15px;line-height:1.6}
