@@ -101,8 +101,8 @@ function render(snapshot){
   if(!adminMode||!snapshot)return;
   const rooms=Array.isArray(snapshot.rooms)?snapshot.rooms:[];
   const participants=Number(snapshot.participants)||0,connected=Number(snapshot.connected)||0;
-  const counts=[['Rooms reporting',rooms.length],['Participants reporting',participants],
-    ['In a call',connected],['Waiting',Math.max(0,participants-connected)]];
+  const counts=[['Rooms reporting',rooms.length],['Rooms with calls',rooms.filter(r=>(r.connected||0)>0).length],
+    ['Participants reporting',participants],['In a call',connected],['Waiting',Math.max(0,participants-connected)]];
   metrics.replaceChildren();
   for(const [title,count] of counts){
     const div=document.createElement('div');div.className='adminMetric';
