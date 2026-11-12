@@ -104,7 +104,7 @@ const targets=targetCandidates();
 if(!targets.length)return;
 if(dialTargetName&&dialTargetName!=='none')targetHistory[dialTargetName]=reason;
 dialTargetIndex=(dialTargetIndex+1)%targets.length;
-nextRetry=Date.now()+1200;
+nextRetry=rescueJoin?0:Date.now()+1200;
 refresh();
 }
 function refresh(){
@@ -382,7 +382,7 @@ clearTimers();
 redialTimer=setInterval(()=>{
 if(stopping||ticket!==epoch||!navigator.onLine)return;
 if(peer?.disconnected&&!peer.destroyed){try{peer.reconnect();}catch{}}
-if(slot>=1||manualScan||rescueJoin){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>8000){log('outgoing call timed out on slot '+dialTargetName);advanceTarget('no answer');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(9000,1200*Math.pow(1.5,retryCount));}if(!data&&media?.open)dialData();}
+if(slot>=1||manualScan||rescueJoin){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>(rescueJoin?4500:8000)){log('outgoing call timed out on slot '+dialTargetName+'; trying another slot');advanceTarget('no answer');closeMedia();if(rescueJoin)nextRetry=0;}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+(rescueJoin?600:Math.min(9000,1200*Math.pow(1.5,retryCount)));}if(!data&&media?.open)dialData();}
 },2000);
 healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
