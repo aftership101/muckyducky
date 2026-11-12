@@ -6,7 +6,7 @@ const events=[];
 const REJOIN_KEY='muckyducky-rejoin-v1';
 const REJOIN_TTL=24*60*60*1000;
 const rescueJoin=new URLSearchParams(window.location.search).get('rescue')==='1';
-let activeRoomPrimary=null,refreshRejoinActive=false;
+let activeRoomPrimary=null,refreshRejoinActive=false,autoRescue=false;
 function readSavedCall(){
 try{
 const raw=sessionStorage.getItem(REJOIN_KEY);
@@ -104,7 +104,7 @@ const targets=targetCandidates();
 if(!targets.length)return;
 if(dialTargetName&&dialTargetName!=='none')targetHistory[dialTargetName]=reason;
 dialTargetIndex=(dialTargetIndex+1)%targets.length;
-nextRetry=rescueJoin?0:Date.now()+1200;
+nextRetry=(rescueJoin||autoRescue)?0:Date.now()+1200;
 refresh();
 }
 function refresh(){
@@ -281,7 +281,7 @@ function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;lastStats=null;lastInbound
 function clearTimers(){clearInterval(healthTimer);clearInterval(redialTimer);clearTimeout(roomRetryTimer);clearTimeout(micRetryTimer);clearTimeout(audioResumeTimer);micRetryTimer=audioResumeTimer=null;healthTimer=redialTimer=roomRetryTimer=null;}
 function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.scanBtn.hidden=false;ui.callBtn.disabled=false;}
 function teardown(reason='hang up button pressed'){
-stopping=true;epoch++;forgetCall();transmit({type:'exit',reason});userMuted=false;micRetryCount=0;audioSessionInterrupted=false;transportFailedAt=0;log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;const p=peer;peer=null;if(d||p)setTimeout(()=>{if(d)try{d.close();}catch{}if(p)try{p.destroy();}catch{}},650);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;remoteDevice=null;dialTargetIndex=0;dialTargetName='none';targetHistory={};occupiedSlots.clear();emptyReports={};manualScan=false;retryCount=0;nextRetry=0;lastAudioFlow=0;remoteAudioInterruptedAt=0;remotePageHidden=false;remoteMicInterrupted=false;localMicInterruptedAt=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
+stopping=true;epoch++;forgetCall();transmit({type:'exit',reason});userMuted=false;micRetryCount=0;audioSessionInterrupted=false;transportFailedAt=0;log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;const p=peer;peer=null;if(d||p)setTimeout(()=>{if(d)try{d.close();}catch{}if(p)try{p.destroy();}catch{}},650);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;remoteDevice=null;dialTargetIndex=0;dialTargetName='none';targetHistory={};occupiedSlots.clear();emptyReports={};manualScan=false;autoRescue=false;retryCount=0;nextRetry=0;lastAudioFlow=0;remoteAudioInterruptedAt=0;remotePageHidden=false;remoteMicInterrupted=false;localMicInterruptedAt=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
 }
 async function play(){
 if(!ui.remoteAudio.srcObject)return;
@@ -320,7 +320,7 @@ c.on('close',()=>{if(data!==c)return;data=null;if(!stopping){log('diagnostics di
 c.on('error',e=>log('diagnostics error: '+e.message));
 }
 function dial(){
-if(stopping||holdRemote||(slot<1&&!manualScan&&!rescueJoin)||!peer?.open||!stream||media)return;
+if(stopping||holdRemote||(slot<1&&!manualScan&&!rescueJoin&&!autoRescue)||!peer?.open||!stream||media)return;
 const targets=targetCandidates();
 if(!targets.length)return;
 const selected=targets[dialTargetIndex%targets.length];
@@ -376,13 +376,13 @@ refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt
 function peerReady(p,index,ticket){
 p.on('open',()=>{
 if(p!==peer||ticket!==epoch||stopping){p.destroy();return;}
-slot=index;dialTargetIndex=0;state(rescueJoin?'finding existing call':'waiting','wait');refresh();
-if(index>=1||manualScan||rescueJoin){holdRemote=false;dial();}
+slot=index;dialTargetIndex=0;state((rescueJoin||autoRescue)?'finding existing call':'waiting','wait');refresh();
+if(index>=1||manualScan||rescueJoin||autoRescue){holdRemote=false;dial();}
 clearTimers();
 redialTimer=setInterval(()=>{
 if(stopping||ticket!==epoch||!navigator.onLine)return;
 if(peer?.disconnected&&!peer.destroyed){try{peer.reconnect();}catch{}}
-if(slot>=1||manualScan||rescueJoin){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>(rescueJoin?4500:8000)){log('outgoing call timed out on slot '+dialTargetName+'; trying another slot');advanceTarget('no answer');closeMedia();if(rescueJoin)nextRetry=0;}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+(rescueJoin?600:Math.min(9000,1200*Math.pow(1.5,retryCount)));}if(!data&&media?.open)dialData();}
+if(slot>=1||manualScan||rescueJoin||autoRescue){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>((rescueJoin||autoRescue)?4500:8000)){log('outgoing call timed out on slot '+dialTargetName+'; trying another slot');advanceTarget('no answer');closeMedia();if(rescueJoin||autoRescue)nextRetry=0;}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+((rescueJoin||autoRescue)?600:Math.min(9000,1200*Math.pow(1.5,retryCount)));}if(!data&&media?.open)dialData();}
 },2000);
 healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
@@ -438,13 +438,25 @@ p.on('close',()=>{if(p===peer)log('signaling closed');});
 p.on('error',e=>{
 if(p!==peer||ticket!==epoch||stopping)return;
 log('PeerJS error: '+e.type);
-if(e.type==='unavailable-id'&&index<ids.length-1){occupiedSlots.add(index<6?String.fromCharCode(65+index):'backup');log('slot '+(index<6?String.fromCharCode(65+index):'backup')+' occupied; trying next room slot (may be stale)');try{p.destroy();}catch{}if(peer===p)peer=null;openPeer(index+1,ticket);return;}
+if(e.type==='unavailable-id'&&index<ids.length-1){
+const label=index<6?String.fromCharCode(65+index):'backup';
+occupiedSlots.add(label);
+log('slot '+label+' occupied (possibly a stale signaling session)');
+try{p.destroy();}catch{}if(peer===p)peer=null;
+if(index===0&&!rescueJoin){
+  autoRescue=true;manualScan=true;
+  log('A occupied: using an independent rescue ID and scanning A-F, without claiming B');
+  state('finding existing call','wait');
+  openPeer(ids.length-1,ticket);
+}else openPeer(index+1,ticket);
+return;
+}
 if(e.type==='unavailable-id'&&index===ids.length-1){occupiedSlots.add('backup');
   log('fresh reconnect identifiers unavailable; creating new identifiers');
   state('waiting for room','wait');
   try{p.destroy();}catch{}if(peer===p)peer=null;
   clearTimeout(roomRetryTimer);
-  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(rescueJoin?7:6,ticket);}},2500);
+  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer((rescueJoin||autoRescue)?7:6,ticket);}},2500);
   return;
 }
 if(e.type==='peer-unavailable'){if(media&&!media.open){const unavailableId=media.peer;const target=allRoomSlots().find(t=>t.id===unavailableId);if(target){emptyReports[target.label]=Date.now();markTarget(target.label,'empty (server says peer unavailable)');log('slot '+target.label+' not registered at last check');}advanceTarget('empty (not registered)');closeMedia();}if(!media)state('waiting','wait');return;}
@@ -497,7 +509,7 @@ state(savedPrimary?'rejoining':'starting','wait');
 const ticket=++epoch;
 const newIds=savedPrimary?idsFromPrimary(savedPrimary):await roomIds(password);
 if(ticket!==epoch)return;
-ids=newIds;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested;
+ids=newIds;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested;autoRescue=false;
 refreshRejoinActive=!!savedPrimary;
 watchAudioSession();
 const acquired=await microphone();
