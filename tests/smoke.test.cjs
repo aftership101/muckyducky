@@ -106,7 +106,7 @@ test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(htm
 
 test("online counter has an independent image fallback",()=>{assert.match(html,/id="_waumdc"/);assert.match(html,/id="onlineFallback"/);assert.match(html,/whos\.amung\.us\/swidget\/mckdcky26q2\.png/);});
 
-test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[primary,'md-'\+tag\+'-b',\.\.\.\['c','d','e','f'\]/);assert.match(js,/openPeer\(6,ticket\)/);assert.match(js,/if\(p!==peer\|\|stopping\|\|!stream\)/);});
+test("rejoin uses fresh signaling IDs without displacing anyone",()=>{assert.match(js,/const fresh=\(\)=>/);assert.match(js,/return \[primary,'md-'\+tag\+'-b',\.\.\.\['c','d','e','f'\]/);assert.match(js,/openPeer\(rescueJoin\?7:6,ticket\)/);assert.match(js,/if\(p!==peer\|\|stopping\|\|!stream\)/);});
 
 test('attempts each legacy room slot without claiming online status',()=>{
 assert.match(js,/label:'A',id:ids\[0\]/);
@@ -212,7 +212,7 @@ test('occupied A/B slots fall back to discoverable C/D/E/F before random IDs',()
  assert.match(js,/\{label:'F',id:original\.slice\(0,-1\)\+'f'\}/);
  assert.match(js,/index<ids\.length-1/);
  assert.match(js,/openPeer\(index\+1,ticket\)/);
- assert.match(js,/openPeer\(6,ticket\)/);
+ assert.match(js,/openPeer\(rescueJoin\?7:6,ticket\)/);
  assert.match(js,/selected\.id===peer\.id/);
 });
 test('connected audio cannot be displayed as other participant offline due to telemetry',()=>{
