@@ -320,7 +320,7 @@ c.on('close',()=>{if(data!==c)return;data=null;if(!stopping){log('diagnostics di
 c.on('error',e=>log('diagnostics error: '+e.message));
 }
 function dial(){
-if(stopping||holdRemote||(slot<1&&!manualScan)||!peer?.open||!stream||media)return;
+if(stopping||holdRemote||(slot<1&&!manualScan&&!rescueJoin)||!peer?.open||!stream||media)return;
 const targets=targetCandidates();
 if(!targets.length)return;
 const selected=targets[dialTargetIndex%targets.length];
@@ -507,7 +507,7 @@ userMuted=!!options.muted;
 const t=track();if(t)t.enabled=!userMuted;
 ui.muteBtn.textContent=userMuted?'unmute':'mute';
 activeRoomPrimary=ids[0];rememberCall();
-watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
+watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');manualScan=true;openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
 }catch(e){
 if(options.auto){
 state('tap to rejoin','wait');
