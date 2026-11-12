@@ -302,12 +302,12 @@ if(rtc.connectionState==='closed'&&media===c&&!stopping){closeMedia();state('rec
 rtc.addEventListener('connectionstatechange',check);
 rtc.addEventListener('iceconnectionstatechange',check);
 }
-c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();refreshRejoinActive=false;retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting'));startClock();play();heartbeat();dialData();});
+c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();refreshRejoinActive=false;retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting')+'\nincoming sound: not yet verified');startClock();play();heartbeat();dialData();});
 c.on('close',()=>{if(media!==c)return;media=null;ui.remoteAudio.srcObject=null;stopClock();if(!stopping){if(!c.open)advanceTarget('closed before connected');nextRetry=Date.now()+1200;state('reconnecting','wait');remote('disconnected\nreason: '+(remoteReason||'unknown; connection ended'));}});
 c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state('reconnecting','wait');}});
 }
 function watchData(c){
-if(data&&data!==c){if(data.open&&data.peer!==c.peer){c.close();return;}try{data.close();}catch{}}
+if(data&&data!==c){if(data.open&&media?.open&&data.peer===media.peer){c.close();return;}if(data.open&&data.peer!==c.peer){c.close();return;}try{data.close();}catch{}}
 data=c;
 c.on('open',()=>{dataAttemptAt=0;presenceLost=false;hadPresence=true;lastRemote=Date.now();log('diagnostics linked');heartbeat();});
 c.on('data',m=>{
@@ -335,16 +335,16 @@ else advanceTarget('no call created');
 }catch(e){log('dial failed: '+e.message);advanceTarget('dial error');}
 }
 function dialData(){
-if(stopping||!peer?.open||data||!media?.open||!media.peer||peer.id<=media.peer)return;
-try{dataAttemptAt=Date.now();watchData(peer.connect(media.peer,{reliable:true}));}catch(e){log('data dial failed: '+e.message);}
+if(stopping||!peer?.open||data||!media?.open||!media.peer)return;
+try{dataAttemptAt=Date.now();log('connecting diagnostics to current audio peer');watchData(peer.connect(media.peer,{reliable:true}));}catch(e){log('data dial failed: '+e.message);}
 }
 async function inspectAudio(){
 if(statsBusy||!media?.peerConnection||stopping)return;
 const pc=media.peerConnection;if(pc.connectionState==='closed')return;
 statsBusy=true;
 try{
-const reports=await pc.getStats();let inbound=null,loss=0,jitter=0,rtt=null;
-reports.forEach(x=>{if(x.type==='inbound-rtp'&&x.kind==='audio')inbound=x;if(x.type==='candidate-pair'&&x.state==='succeeded'&&x.currentRoundTripTime!=null)rtt=x.currentRoundTripTime;});
+const reports=await pc.getStats();let inbound=null,outbound=null,loss=0,jitter=0,rtt=null;
+reports.forEach(x=>{if(x.type==='inbound-rtp'&&(x.kind==='audio'||x.mediaType==='audio'))inbound=x;if(x.type==='outbound-rtp'&&(x.kind==='audio'||x.mediaType==='audio'))outbound=x;if(x.type==='candidate-pair'&&x.state==='succeeded'&&x.currentRoundTripTime!=null)rtt=x.currentRoundTripTime;});
 if(inbound){let count=inbound.packetsReceived||0;loss=inbound.packetsLost||0;jitter=inbound.jitter||0;
 if(lastInboundPackets===null||count>lastInboundPackets)lastAudioFlow=Date.now();
 lastInboundPackets=count;
@@ -364,9 +364,12 @@ closeMedia();state('reconnecting','wait');return;
 if(age>30000&&!document.hidden&&!audioSessionInterrupted&&(pc.connectionState==='failed'||pc.connectionState==='closed'||pc.iceConnectionState==='failed')){log('transport failed and RTP stalled; rebuilding');closeMedia();state('reconnecting','wait');}
 const previous=lastStats?.quality;if(quality!==previous)log('audio flow: '+quality+'; jitter '+Math.round(jitter*1000)+'ms'+(rtt!==null?', RTT '+Math.round(rtt*1000)+'ms':''));
 lastStats={quality,packets:count,loss,jitter,rtt,energy,emitted,level,energyGrowing,decodedGrowing};
-}else{quality=pc.connectionState==='connected'?'unknown':'dead';}
+}else{
+ quality='unknown (no inbound audio stats)';
+ if(media?.open&&mediaOpenedAt&&Date.now()-mediaOpenedAt>12000)remote('audio connected\nincoming RTP: not confirmed');
+}
 refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt!=null?'\nRTT: '+Math.round(lastStats.rtt*1000)+'ms':'')+
-'\nincoming packets: '+(lastStats?.packets??'unknown')+
+'\nincoming packets: '+(inbound?.packetsReceived??'unknown')+'\noutgoing packets: '+(outbound?.packetsSent??'unknown')+
 '\ndecoding: '+(lastStats?.emitted==null?'unknown':lastStats.decodedGrowing?'active':'no new frames in last sample')+
 '\nincoming sound: '+(lastStats?.energy==null?'unknown':lastStats.energyGrowing?'detected recently':'quiet / not detected')+
 '\nplayback: '+(ui.remoteAudio.paused?'paused':ui.remoteAudio.readyState<2?'buffering':'playing (not proof of audible sound)')+
