@@ -5,6 +5,7 @@ const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn'
 const events=[];
 const REJOIN_KEY='muckyducky-rejoin-v1';
 const REJOIN_TTL=24*60*60*1000;
+const rescueJoin=new URLSearchParams(window.location.search).get('rescue')==='1';
 let activeRoomPrimary=null,refreshRejoinActive=false;
 function readSavedCall(){
 try{
@@ -375,13 +376,13 @@ refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt
 function peerReady(p,index,ticket){
 p.on('open',()=>{
 if(p!==peer||ticket!==epoch||stopping){p.destroy();return;}
-slot=index;dialTargetIndex=0;state('waiting','wait');refresh();
-if(index>=1||manualScan){holdRemote=false;dial();}
+slot=index;dialTargetIndex=0;state(rescueJoin?'finding existing call':'waiting','wait');refresh();
+if(index>=1||manualScan||rescueJoin){holdRemote=false;dial();}
 clearTimers();
 redialTimer=setInterval(()=>{
 if(stopping||ticket!==epoch||!navigator.onLine)return;
 if(peer?.disconnected&&!peer.destroyed){try{peer.reconnect();}catch{}}
-if(slot>=1||manualScan){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>8000){log('outgoing call timed out on slot '+dialTargetName);advanceTarget('no answer');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(9000,1200*Math.pow(1.5,retryCount));}if(!data&&media?.open)dialData();}
+if(slot>=1||manualScan||rescueJoin){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>8000){log('outgoing call timed out on slot '+dialTargetName);advanceTarget('no answer');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(9000,1200*Math.pow(1.5,retryCount));}if(!data&&media?.open)dialData();}
 },2000);
 healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
@@ -443,7 +444,7 @@ if(e.type==='unavailable-id'&&index===ids.length-1){occupiedSlots.add('backup');
   state('waiting for room','wait');
   try{p.destroy();}catch{}if(peer===p)peer=null;
   clearTimeout(roomRetryTimer);
-  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(6,ticket);}},2500);
+  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(rescueJoin?7:6,ticket);}},2500);
   return;
 }
 if(e.type==='peer-unavailable'){if(media&&!media.open){const unavailableId=media.peer;const target=allRoomSlots().find(t=>t.id===unavailableId);if(target){emptyReports[target.label]=Date.now();markTarget(target.label,'empty (server says peer unavailable)');log('slot '+target.label+' not registered at last check');}advanceTarget('empty (not registered)');closeMedia();}if(!media)state('waiting','wait');return;}
@@ -506,7 +507,7 @@ userMuted=!!options.muted;
 const t=track();if(t)t.enabled=!userMuted;
 ui.muteBtn.textContent=userMuted?'unmute':'mute';
 activeRoomPrimary=ids[0];rememberCall();
-watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();openPeer(0,ticket);
+watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
 }catch(e){
 if(options.auto){
 state('tap to rejoin','wait');
