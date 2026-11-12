@@ -28,7 +28,7 @@ function idsFromPrimary(primary){
 if(!/^md-[a-f0-9]{42}-a$/.test(primary))throw Error('saved room is invalid');
 const tag=primary.slice(3,-2);
 const fresh=()=> 'md-'+tag.slice(0,32)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));
-return [primary,'md-'+tag+'-b',fresh(),fresh()];
+return [primary,'md-'+tag+'-b',...['c','d','e','f'].map(s=>'md-'+tag+'-'+s),fresh(),fresh()];
 }
 const deviceId=(()=>{try{let id=localStorage.getItem('muckyducky-device-v1');if(!id){id=crypto.randomUUID();localStorage.setItem('muckyducky-device-v1',id);}return id;}catch{return crypto.randomUUID?.()||String(Date.now())+'-'+Math.random();}})();
 
@@ -68,7 +68,9 @@ return [
 {label:'A',id:ids[0]},
 {label:'B',id:ids[1]},
 {label:'C',id:original.slice(0,-1)+'c'},
-{label:'D',id:original.slice(0,-1)+'d'}
+{label:'D',id:original.slice(0,-1)+'d'},
+{label:'E',id:original.slice(0,-1)+'e'},
+{label:'F',id:original.slice(0,-1)+'f'}
 ];
 }
 function targetCandidates(){
@@ -89,7 +91,7 @@ if(occupiedSlots.has(t.label))return t.label+': ID occupied (possibly stale)';
 if(result==='no answer'||result==='closed before connected')return t.label+': no answer (occupancy unknown)';
 return t.label+': not checked / unknown';
 });
-if(slot>=2&&peer?.open)lines.push('backup: 1 confirmed (you)');
+if(slot>=6&&peer?.open)lines.push('backup: 1 confirmed (you)');
 ui.slotCounts.textContent=lines.join('\n');
 }
 function markTarget(label,result){
@@ -116,7 +118,7 @@ ui.localState.textContent='signaling: '+(peer?.open?'online':'offline')+
 '\npage: '+document.visibilityState+
 '\nnetwork: '+(navigator.onLine?'online':'offline')+
 '\ncall: '+(media?.open?'open':'not connected')+
-'\nyour slot: '+(slot<0?'not assigned':slot<2?String.fromCharCode(65+slot):'backup')+
+'\nyour slot: '+(slot<0?'not assigned':slot<6?String.fromCharCode(65+slot):'backup')+
 '\ntrying: '+(media?.open?'connected':dialTargetName)+
 '\nslot attempts: '+slots+'\noccupied IDs: '+(occupiedSlots.size?[...occupiedSlots].join(', ')+' (may be stale)':'none detected');
 }
@@ -299,7 +301,7 @@ if(rtc.connectionState==='closed'&&media===c&&!stopping){closeMedia();state('rec
 rtc.addEventListener('connectionstatechange',check);
 rtc.addEventListener('iceconnectionstatechange',check);
 }
-c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();refreshRejoinActive=false;retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');startClock();play();heartbeat();});
+c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();refreshRejoinActive=false;retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting'));startClock();play();heartbeat();dialData();});
 c.on('close',()=>{if(media!==c)return;media=null;ui.remoteAudio.srcObject=null;stopClock();if(!stopping){if(!c.open)advanceTarget('closed before connected');nextRetry=Date.now()+1200;state('reconnecting','wait');remote('disconnected\nreason: '+(remoteReason||'unknown; connection ended'));}});
 c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state('reconnecting','wait');}});
 }
@@ -313,7 +315,7 @@ lastRemote=Date.now();presenceLost=false;hadPresence=true;
 if(m.type==='status'){if(m.device&&remoteDevice&&m.device!==remoteDevice&&media){log('ignored status from different participant');return;}if(m.device)remoteDevice=m.device;if(m.session&&remoteSession&&m.session!==remoteSession){log('remote session changed; preserving media until a new call is established');}remoteSession=m.session||remoteSession;holdRemote=false;remotePageHidden=!!m.pageHidden;remoteMicInterrupted=!!m.micInterrupted;if(remoteMicInterrupted&&!remoteAudioInterruptedAt)remoteAudioInterruptedAt=Date.now();if(!remoteMicInterrupted&&remoteAudioInterruptedAt)remoteAudioInterruptedAt=0;remote(m.state+'\nupdated: just now');}
 if(m.type==='exit'){transmit({type:'exit-ack'});remoteReason=m.reason||'hang up';remote('offline\nreason: '+remoteReason);log('other person: '+remoteReason);holdRemote=true;closeMedia();state('waiting for rejoin','wait');const stale=data;data=null;if(stale)try{stale.close();}catch{}}
 });
-c.on('close',()=>{if(data!==c)return;data=null;if(!stopping){log('diagnostics disconnected');if(Date.now()-lastRemote>25000)remote('unreachable\nreason: unknown');}});
+c.on('close',()=>{if(data!==c)return;data=null;if(!stopping){log('diagnostics disconnected');if(media?.open)remote('audio connected\ndiagnostics: reconnecting');else if(Date.now()-lastRemote>25000)remote('unreachable\nreason: unknown');}});
 c.on('error',e=>log('diagnostics error: '+e.message));
 }
 function dial(){
@@ -332,7 +334,7 @@ else advanceTarget('no call created');
 }catch(e){log('dial failed: '+e.message);advanceTarget('dial error');}
 }
 function dialData(){
-if(stopping||(slot<1&&!manualScan)||!peer?.open||data||!media?.open||!media.peer)return;
+if(stopping||!peer?.open||data||!media?.open||!media.peer||peer.id<=media.peer)return;
 try{dataAttemptAt=Date.now();watchData(peer.connect(media.peer,{reliable:true}));}catch(e){log('data dial failed: '+e.message);}
 }
 async function inspectAudio(){
@@ -373,13 +375,13 @@ refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt
 function peerReady(p,index,ticket){
 p.on('open',()=>{
 if(p!==peer||ticket!==epoch||stopping){p.destroy();return;}
-slot=index;state('waiting','wait');refresh();
+slot=index;dialTargetIndex=0;state('waiting','wait');refresh();
 if(index>=1||manualScan){holdRemote=false;dial();}
 clearTimers();
 redialTimer=setInterval(()=>{
 if(stopping||ticket!==epoch||!navigator.onLine)return;
 if(peer?.disconnected&&!peer.destroyed){try{peer.reconnect();}catch{}}
-if(slot>=1||manualScan){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>8000){log('outgoing call timed out on slot '+dialTargetName);advanceTarget('no answer');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(16000,1500*Math.pow(1.7,retryCount));}if(!data&&media?.open)dialData();}
+if(slot>=1||manualScan){if(media&&!media.open&&callAttemptAt&&Date.now()-callAttemptAt>8000){log('outgoing call timed out on slot '+dialTargetName);advanceTarget('no answer');closeMedia();}if(data&&!data.open&&dataAttemptAt&&Date.now()-dataAttemptAt>12000){log('diagnostics timed out; reconnecting');const old=data;data=null;try{old.close();}catch{}}if(!media&&!holdRemote&&Date.now()>=nextRetry){dial();retryCount=Math.min(retryCount+1,7);nextRetry=Date.now()+Math.min(9000,1200*Math.pow(1.5,retryCount));}if(!data&&media?.open)dialData();}
 },2000);
 healthTimer=setInterval(()=>{
 if(stopping||ticket!==epoch)return;
@@ -435,13 +437,13 @@ p.on('close',()=>{if(p===peer)log('signaling closed');});
 p.on('error',e=>{
 if(p!==peer||ticket!==epoch||stopping)return;
 log('PeerJS error: '+e.type);
-if(e.type==='unavailable-id'&&index<ids.length-1){occupiedSlots.add(index<2?String.fromCharCode(65+index):'backup');log('slot '+(index<2?String.fromCharCode(65+index):'backup')+' occupied; this does not confirm someone is online');try{p.destroy();}catch{}if(peer===p)peer=null;openPeer(index+1,ticket);return;}
+if(e.type==='unavailable-id'&&index<ids.length-1){occupiedSlots.add(index<6?String.fromCharCode(65+index):'backup');log('slot '+(index<6?String.fromCharCode(65+index):'backup')+' occupied; trying next room slot (may be stale)');try{p.destroy();}catch{}if(peer===p)peer=null;openPeer(index+1,ticket);return;}
 if(e.type==='unavailable-id'&&index===ids.length-1){occupiedSlots.add('backup');
   log('fresh reconnect identifiers unavailable; creating new identifiers');
   state('waiting for room','wait');
   try{p.destroy();}catch{}if(peer===p)peer=null;
   clearTimeout(roomRetryTimer);
-  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[2]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[3]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(2,ticket);}},2500);
+  roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer(6,ticket);}},2500);
   return;
 }
 if(e.type==='peer-unavailable'){if(media&&!media.open){const unavailableId=media.peer;const target=allRoomSlots().find(t=>t.id===unavailableId);if(target){emptyReports[target.label]=Date.now();markTarget(target.label,'empty (server says peer unavailable)');log('slot '+target.label+' not registered at last check');}advanceTarget('empty (not registered)');closeMedia();}if(!media)state('waiting','wait');return;}
