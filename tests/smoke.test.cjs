@@ -266,7 +266,7 @@ test('diagnostics outbound initiated by B to legacy A even when B ID sorts above
 });
 test('audio diagnosis distinguishes missing inbound RTP stats and outbound RTP',()=>{
  assert.match(js,/x\.mediaType==='audio'/);
- assert.match(js,/outbound\.packetsSent/);
+ assert.match(js,/outbound\?\.packetsSent/);
  assert.match(js,/incoming RTP: not confirmed/);
  assert.match(js,/no inbound audio stats/);
 });
