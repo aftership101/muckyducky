@@ -212,7 +212,7 @@ test('occupied A/B slots fall back to discoverable C/D/E/F before random IDs',()
  assert.match(js,/\{label:'F',id:original\.slice\(0,-1\)\+'f'\}/);
  assert.match(js,/index<ids\.length-1/);
  assert.match(js,/openPeer\(index\+1,ticket\)/);
- assert.match(js,/openPeer\(rescueJoin\?7:6,ticket\)/);
+ assert.match(js,/openPeer\(\(rescueJoin\|\|autoRescue\)\?7:6,ticket\)/);
  assert.match(js,/selected\.id===peer\.id/);
 });
 test('connected audio cannot be displayed as other participant offline due to telemetry',()=>{
@@ -229,7 +229,7 @@ test('rescue mode joins with a fresh peer ID and can dial old Safari A/B without
  assert.match(js,/openPeer\(ids\.length-1,ticket\)/);
  assert.match(js,/slot>=1\|\|manualScan\|\|rescueJoin\|\|autoRescue/);
  assert.match(js,/index>=1\|\|manualScan\|\|rescueJoin\|\|autoRescue/);
- assert.match(js,/openPeer\(rescueJoin\?7:6,ticket\)/);
+ assert.match(js,/openPeer\(\(rescueJoin\|\|autoRescue\)\?7:6,ticket\)/);
  assert.match(html,/app\.js\?v=35/);
 });
 
