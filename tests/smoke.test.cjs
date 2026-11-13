@@ -198,7 +198,7 @@ test('presence collector tracks reported rooms and call participation',()=>{
  assert.match(presence,/Rooms with calls/);
  assert.match(presence,/type:'presence'/);
  assert.match(presence,/type:'snapshot'/);
- assert.match(presence,/previousConnected!==mediaConnected\)sendReport\(\)/);
+ assert.match(presence,/previousConnected!==mediaConnected\|\|previousPeerId!==mediaPeerId\)sendReport\(\)/);
  assert.match(presence,/const STALE_MS=27000/);
  assert.match(presence,/crypto\.subtle\.digest\('SHA-256'/);
  assert.match(presence,/clearReporter\(\)/);
