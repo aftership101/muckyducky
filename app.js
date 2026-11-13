@@ -6,7 +6,7 @@ const events=[];
 const REJOIN_KEY='muckyducky-rejoin-v1';
 const REJOIN_TTL=24*60*60*1000;
 const rescueJoin=new URLSearchParams(window.location.search).get('rescue')==='1';
-let activeRoomPrimary=null,refreshRejoinActive=false,autoRescue=false;
+let activeRoomPrimary=null,refreshRejoinActive=false,autoRescue=false,directTarget=null;
 function readSavedCall(){
 try{
 const raw=sessionStorage.getItem(REJOIN_KEY);
@@ -76,11 +76,13 @@ return [
 }
 function targetCandidates(){
 if(!peer?.id)return [];
+if(directTarget)return directTarget===peer.id?[]:[{label:'waiting peer',id:directTarget}];
 return allRoomSlots().filter(t=>t.id!==peer.id);
 }
 function updateSlotCounts(){
 ui.slotCounts.hidden=!stream;
 if(!stream)return;
+if(directTarget){ui.slotCounts.textContent='Direct waiting-peer connection: '+(media?.open?'connected':'trying');return;}
 const connectedPeer=media?.open?media.peer:null;
 const lines=allRoomSlots().map(t=>{
 if(t.id===peer?.id)return t.label+': 1 confirmed (you)';
@@ -108,7 +110,7 @@ nextRetry=(rescueJoin||autoRescue)?0:Date.now()+1200;
 refresh();
 }
 function refresh(){
-window.dispatchEvent(new CustomEvent('muckyducky:presence',{detail:{room:stream?activeRoomPrimary:null,connected:!!media?.open}}));
+window.dispatchEvent(new CustomEvent('muckyducky:presence',{detail:{room:stream?activeRoomPrimary:null,connected:!!media?.open,peerId:peer?.open?peer.id:null}}));
 const t=track();
 updateSlotCounts();
 ui.scanBtn.hidden=false;ui.scanBtn.disabled=!!media?.open||starting;
@@ -282,7 +284,7 @@ function closeMedia(){callAttemptAt=0;mediaOpenedAt=0;lastStats=null;lastInbound
 function clearTimers(){clearInterval(healthTimer);clearInterval(redialTimer);clearTimeout(roomRetryTimer);clearTimeout(micRetryTimer);clearTimeout(audioResumeTimer);micRetryTimer=audioResumeTimer=null;healthTimer=redialTimer=roomRetryTimer=null;}
 function controls(active){ui.setup.hidden=active;ui.callBtn.hidden=active;ui.muteBtn.hidden=!active;ui.endBtn.hidden=!active;ui.scanBtn.hidden=false;ui.callBtn.disabled=false;ui.scanBtn.textContent='find waiting participant';}
 function teardown(reason='hang up button pressed'){
-stopping=true;epoch++;forgetCall();transmit({type:'exit',reason});userMuted=false;micRetryCount=0;audioSessionInterrupted=false;transportFailedAt=0;log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;const p=peer;peer=null;if(d||p)setTimeout(()=>{if(d)try{d.close();}catch{}if(p)try{p.destroy();}catch{}},650);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;remoteDevice=null;dialTargetIndex=0;dialTargetName='none';targetHistory={};occupiedSlots.clear();emptyReports={};manualScan=false;autoRescue=false;retryCount=0;nextRetry=0;lastAudioFlow=0;remoteAudioInterruptedAt=0;remotePageHidden=false;remoteMicInterrupted=false;localMicInterruptedAt=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
+stopping=true;epoch++;forgetCall();transmit({type:'exit',reason});userMuted=false;micRetryCount=0;audioSessionInterrupted=false;transportFailedAt=0;log('you: '+reason);clearTimers();closeMedia();const d=data;data=null;const p=peer;peer=null;if(d||p)setTimeout(()=>{if(d)try{d.close();}catch{}if(p)try{p.destroy();}catch{}},650);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}ids=null;slot=-1;starting=false;connecting=false;lastRemote=0;remoteReason='';presenceLost=false;hadPresence=false;holdRemote=false;remoteSession=null;remoteDevice=null;dialTargetIndex=0;dialTargetName='none';targetHistory={};occupiedSlots.clear();emptyReports={};manualScan=false;autoRescue=false;directTarget=null;retryCount=0;nextRetry=0;lastAudioFlow=0;remoteAudioInterruptedAt=0;remotePageHidden=false;remoteMicInterrupted=false;localMicInterruptedAt=0;remote('offline');controls(false);ui.muteBtn.textContent='mute';state('offline');problem('');refresh();stopping=false;
 }
 async function play(){
 if(!ui.remoteAudio.srcObject)return;
@@ -498,7 +500,7 @@ t.addEventListener('ended',()=>{if(stopping||stream!==s)return;log('microphone e
 }
 async function begin(scanRequested=false,options={}){
 if(starting||stream||peer)return;
-if(!options.roomPrimary&&ui.password.value==='1'){
+if(!options.directPeerId&&!options.roomPrimary&&ui.password.value==='1'){
 window.dispatchEvent(new Event('muckyducky:admin-open'));
 return;
 }
@@ -507,13 +509,15 @@ try{
 if(!window.Peer)throw Error('PeerJS did not load');
 if(!navigator.mediaDevices?.getUserMedia)throw Error('microphone unavailable (HTTPS required)');
 const savedPrimary=options.roomPrimary||null;
+const requestedPeer=options.directPeerId||null;
+if(requestedPeer&&!/^md-[a-f0-9]{42}-[a-f]$/.test(requestedPeer)&&!/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(requestedPeer))throw Error('invalid waiting peer');
 const password=ui.password.value;
-if(!savedPrimary&&password.length<4)throw Error('enter a shared room password (4+ characters)');
+if(!savedPrimary&&!requestedPeer&&password.length<4)throw Error('enter a shared room password (4+ characters)');
 state(savedPrimary?'rejoining':'starting','wait');
 const ticket=++epoch;
-const newIds=savedPrimary?idsFromPrimary(savedPrimary):await roomIds(password);
+const newIds=requestedPeer?idsFromPrimary('md-'+Array.from(crypto.getRandomValues(new Uint8Array(21)),v=>v.toString(16).padStart(2,'0')).join('')+'-a'):savedPrimary?idsFromPrimary(savedPrimary):await roomIds(password);
 if(ticket!==epoch)return;
-ids=newIds;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested;autoRescue=false;
+ids=newIds;directTarget=requestedPeer;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested||!!requestedPeer;autoRescue=false;
 refreshRejoinActive=!!savedPrimary;
 watchAudioSession();
 const acquired=await microphone();
@@ -522,8 +526,8 @@ stream=acquired;
 userMuted=!!options.muted;
 const t=track();if(t)t.enabled=!userMuted;
 ui.muteBtn.textContent=userMuted?'unmute':'mute';
-activeRoomPrimary=ids[0];rememberCall();
-watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');manualScan=true;openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
+activeRoomPrimary=requestedPeer?null:ids[0];if(!requestedPeer)rememberCall();
+watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');manualScan=true;openPeer(ids.length-1,ticket);}else if(requestedPeer){log('joining a reported waiting peer directly (no room password)');state('connecting to waiting peer','wait');openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
 }catch(e){
 if(options.auto){
 state('tap to rejoin','wait');
@@ -538,6 +542,11 @@ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
 }
 finally{starting=false;ui.callBtn.disabled=false;}
 }
+window.addEventListener('muckyducky:admin-join',e=>{
+  const target=e.detail?.peerId;
+  if(typeof target!=='string')return;
+  begin(true,{directPeerId:target});
+});
 ui.callBtn.addEventListener('click',()=>begin(false));
 ui.endBtn.addEventListener('click',()=>teardown());
 ui.muteBtn.addEventListener('click',()=>{const t=track();if(!t)return;userMuted=!userMuted;t.enabled=!userMuted;ui.muteBtn.textContent=userMuted?'unmute':'mute';rememberCall();log(userMuted?'muted':'unmuted');heartbeat();});
