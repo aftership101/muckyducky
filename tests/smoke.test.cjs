@@ -203,7 +203,7 @@ test('presence collector tracks reported rooms and call participation',()=>{
  assert.match(presence,/crypto\.subtle\.digest\('SHA-256'/);
  assert.match(presence,/clearReporter\(\)/);
  assert.match(presence,/password\.value==='1'/);
- assert.match(html,/Live, anonymous reports/);
+ assert.match(html,/Live reports are not a complete server-wide count/);
 });
 
 test('occupied A/B slots fall back to discoverable C/D/E/F before random IDs',()=>{
