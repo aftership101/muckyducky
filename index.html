@@ -7,8 +7,8 @@
 <title>muckyducky</title>
 <link rel="stylesheet" href="styles.css?v=11">
 <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script defer src="app.js?v=37"></script>
-<script defer src="presence.js?v=2"></script>
+<script defer src="app.js?v=38"></script>
+<script defer src="presence.js?v=3"></script>
 </head>
 <body><main>
 <div class="status"><span id="dot" class="dot"></span><span id="status" role="status" aria-live="polite">offline</span><span id="timer">00:00</span></div>
@@ -31,8 +31,8 @@
 <div class="adminTableWrap">
 <table class="adminTable"><thead><tr><th>Room</th><th>People</th><th>In call</th><th>Waiting</th></tr></thead><tbody id="adminRoomRows"></tbody></table>
 </div>
-<p class="adminCaution">Live, anonymous reports from browsers running this version while this admin page is open. Not a complete server-wide count. Backgrounded or disconnected browsers may stop reporting.</p>
-<p class="adminCaution">Password 1 is only a shortcut to this view; it is not secure authentication. No room passwords or call audio are collected.</p>
+<p class="adminCaution">Live reports are not a complete server-wide count. Join waiting participant requires that the other browser loaded v38 or newer, is still responsive, and reported its calling ID. Older waiting sessions cannot be joined from the admin count alone.</p>
+<p class="adminCaution">Password 1 is only a shortcut to this view; it is not secure authentication. Reported calling IDs are visible to visitors who open this admin panel; call audio is not collected.</p>
 </section>
 <div id="slotCounts" aria-live="polite" hidden></div>
 <p id="error" role="alert" hidden></p>
