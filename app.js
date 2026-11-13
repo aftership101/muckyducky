@@ -529,7 +529,7 @@ state(savedPrimary?'rejoining':'starting','wait');
 const ticket=++epoch;
 const newIds=requestedPeer?idsFromPrimary('md-'+Array.from(crypto.getRandomValues(new Uint8Array(21)),v=>v.toString(16).padStart(2,'0')).join('')+'-a'):savedPrimary?idsFromPrimary(savedPrimary):await roomIds(password);
 if(ticket!==epoch)return;
-const isReturnToRoom=!requestedPeer&&(!!savedPrimary||wasInThisRoom(newIds[0]));
+const isReturnToRoom=!requestedPeer&&(rescueJoin||!!savedPrimary||wasInThisRoom(newIds[0]));
 ids=newIds;directTarget=requestedPeer;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested||!!requestedPeer;autoRescue=false;
 refreshRejoinActive=isReturnToRoom;
 sessionId=crypto.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
