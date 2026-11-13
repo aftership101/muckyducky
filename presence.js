@@ -10,7 +10,7 @@ const password=$('password');
 const reports=new Map(),connections=new Set();
 let adminMode=false,adminPeer=null,adminViewer=false,adminConnection=null;
 let reporterPeer=null,reporterConnection=null,reporterLastDial=0,reporterLastSent=0;
-let roomPrimary=null,roomTag=null,roomGeneration=0,mediaConnected=false;
+let roomPrimary=null,roomTag=null,roomGeneration=0,mediaConnected=false,mediaPeerId=null;
 let lastAdminConnection=0,lastSnapshot=null,adminLastDial=0;
 const session=(()=>{
 try {
@@ -29,9 +29,10 @@ function clearReporter(){
 }
 function onPresence(d){
   const next=typeof d?.room==='string'&&/^md-[a-f0-9]{42}-a$/.test(d.room)?d.room:null;
-  const previousConnected=mediaConnected;
+  const previousConnected=mediaConnected,previousPeerId=mediaPeerId;
   mediaConnected=!!d?.connected;
-  if(next===roomPrimary){if(previousConnected!==mediaConnected)sendReport();return;}
+  mediaPeerId=typeof d?.peerId==='string'&&(/^md-[a-f0-9]{42}-[a-f]$/.test(d.peerId)||/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(d.peerId))?d.peerId:null;
+  if(next===roomPrimary){if(previousConnected!==mediaConnected||previousPeerId!==mediaPeerId)sendReport();return;}
   roomPrimary=next;roomTag=null;
   const generation=++roomGeneration;
   clearReporter();
@@ -46,7 +47,7 @@ function onPresence(d){
 function sendReport(){
   if(!reporterConnection?.open||!roomTag)return;
   try {
-    reporterConnection.send({type:'presence',session,room:roomTag,connected:mediaConnected});
+    reporterConnection.send({type:'presence',session,room:roomTag,connected:mediaConnected,peerId:mediaPeerId});
     reporterLastSent=Date.now();
   }catch{}
 }
@@ -90,8 +91,8 @@ function snapshotFromReports(){
   const byRoom=new Map();
   const all=liveEntries();
   for(const r of all){
-    const row=byRoom.get(r.room)||{room:r.room,participants:0,connected:0,latest:0};
-    row.participants++;if(r.connected)row.connected++;
+    const row=byRoom.get(r.room)||{room:r.room,participants:0,connected:0,latest:0,waitingPeers:[]};
+    row.participants++;if(r.connected)row.connected++;else if(r.peerId)row.waitingPeers.push(r.peerId);
     row.latest=Math.max(row.latest,r.at);
     byRoom.set(r.room,row);
   }
@@ -124,6 +125,17 @@ function render(snapshot){
       for(const value of items){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}
       row.title='Anonymous room tag: '+String(r.room||'').slice(0,8);
       roomRows.append(row);
+      for(const id of r.waitingPeers||[]){
+        if(typeof id!=='string'||!/^md-[a-f0-9]{42}-[a-f]$/.test(id)&&!/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(id))continue;
+        const actionRow=document.createElement('tr'),cell=document.createElement('td'),button=document.createElement('button');
+        cell.colSpan=4;
+        button.type='button';button.textContent='Join waiting participant';
+        button.addEventListener('click',()=>{
+          closeAdmin();
+          window.dispatchEvent(new CustomEvent('muckyducky:admin-join',{detail:{peerId:id}}));
+        });
+        cell.append(button);actionRow.append(cell);roomRows.append(actionRow);
+      }
     });
   }
 }
@@ -139,7 +151,7 @@ function onHostConnection(c){
   c.on('data',m=>{
     if(!m||typeof m!=='object')return;
     if(m.type==='presence'&&typeof m.session==='string'&&m.session.length<=100&&/^[a-f0-9]{20}$/.test(m.room||'')){
-      reports.set(m.session,{room:m.room,connected:!!m.connected,at:Date.now()});
+      reports.set(m.session,{room:m.room,connected:!!m.connected,peerId:typeof m.peerId==='string'&&(/^md-[a-f0-9]{42}-[a-f]$/.test(m.peerId)||/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(m.peerId))?m.peerId:null,at:Date.now()});
       broadcast();
     }else if(m.type==='leave'&&typeof m.session==='string'){
       reports.delete(m.session);broadcast();
