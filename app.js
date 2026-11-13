@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const ui=Object.fromEntries(['dot','status','timer','password','setup','callBtn','muteBtn','endBtn','scanBtn','slotCounts','restoreBtn','error','browserLink','localState','remoteState','diagnostics','remoteAudio'].map(id=>[id,$(id)]));
 const events=[];
 const REJOIN_KEY='muckyducky-rejoin-v1';
+const LAST_ROOM_KEY='muckyducky-last-call-room-v1';
 const REJOIN_TTL=24*60*60*1000;
 const rescueJoin=new URLSearchParams(window.location.search).get('rescue')==='1';
 let activeRoomPrimary=null,refreshRejoinActive=false,autoRescue=false,directTarget=null;
@@ -25,6 +26,13 @@ try{sessionStorage.setItem(REJOIN_KEY,JSON.stringify({roomPrimary:activeRoomPrim
 catch{log('tab storage unavailable; refreshing may require joining manually');}
 }
 function forgetCall(){activeRoomPrimary=null;refreshRejoinActive=false;try{sessionStorage.removeItem(REJOIN_KEY);}catch{}}
+function wasInThisRoom(room){
+  try{return sessionStorage.getItem(LAST_ROOM_KEY)===room;}catch{return false;}
+}
+function markRoomJoined(room){
+  if(!room)return;
+  try{sessionStorage.setItem(LAST_ROOM_KEY,room);}catch{}
+}
 function idsFromPrimary(primary){
 if(!/^md-[a-f0-9]{42}-a$/.test(primary))throw Error('saved room is invalid');
 const tag=primary.slice(3,-2);
@@ -305,7 +313,7 @@ if(rtc.connectionState==='closed'&&media===c&&!stopping){closeMedia();state('rec
 rtc.addEventListener('connectionstatechange',check);
 rtc.addEventListener('iceconnectionstatechange',check);
 }
-c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();refreshRejoinActive=false;retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting')+'\nincoming sound: not yet verified');startClock();play();heartbeat();dialData();});
+c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();retryCount=0;nextRetry=0;lastAudioFlow=Date.now();resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting')+'\nincoming sound: not yet verified');startClock();play();heartbeat();dialData();});
 c.on('close',()=>{if(media!==c)return;media=null;ui.remoteAudio.srcObject=null;stopClock();if(!stopping){if(!c.open)advanceTarget('closed before connected');nextRetry=Date.now()+1200;state('reconnecting','wait');remote('disconnected\nreason: '+(remoteReason||'unknown; connection ended'));}});
 c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state('reconnecting','wait');}});
 }
@@ -332,6 +340,10 @@ dialTargetName=selected.label;
 markTarget(selected.label,'trying');
 log('trying room slot '+selected.label);
 try{
+if(refreshRejoinActive){
+  sessionId=crypto.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
+  log('rejoin attempt with a fresh session ID');
+}
 const c=peer.call(selected.id,stream,{metadata:{device:deviceId,session:sessionId,rejoin:refreshRejoinActive}});
 if(c){callAttemptAt=Date.now();mediaEvents(c);}
 else advanceTarget('no call created');
@@ -517,8 +529,11 @@ state(savedPrimary?'rejoining':'starting','wait');
 const ticket=++epoch;
 const newIds=requestedPeer?idsFromPrimary('md-'+Array.from(crypto.getRandomValues(new Uint8Array(21)),v=>v.toString(16).padStart(2,'0')).join('')+'-a'):savedPrimary?idsFromPrimary(savedPrimary):await roomIds(password);
 if(ticket!==epoch)return;
+const isReturnToRoom=!requestedPeer&&(!!savedPrimary||wasInThisRoom(newIds[0]));
 ids=newIds;directTarget=requestedPeer;dialTargetIndex=0;remoteDevice=null;targetHistory={};dialTargetName='none';occupiedSlots.clear();emptyReports={};manualScan=scanRequested||!!requestedPeer;autoRescue=false;
-refreshRejoinActive=!!savedPrimary;
+refreshRejoinActive=isReturnToRoom;
+sessionId=crypto.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
+if(isReturnToRoom)log('returning to existing room with new call session');
 watchAudioSession();
 const acquired=await microphone();
 if(ticket!==epoch){acquired.getTracks().forEach(t=>t.stop());return;}
@@ -526,7 +541,7 @@ stream=acquired;
 userMuted=!!options.muted;
 const t=track();if(t)t.enabled=!userMuted;
 ui.muteBtn.textContent=userMuted?'unmute':'mute';
-activeRoomPrimary=requestedPeer?null:ids[0];if(!requestedPeer)rememberCall();
+activeRoomPrimary=requestedPeer?null:ids[0];if(!requestedPeer){rememberCall();markRoomJoined(ids[0]);}
 watchMicrophone(stream);controls(true);ui.restoreBtn.textContent='restore audio';ui.restoreBtn.hidden=true;refresh();if(rescueJoin){log('rescue join: using fresh ID, calling existing A/B slots without claiming them');state('finding existing call','wait');manualScan=true;openPeer(ids.length-1,ticket);}else if(requestedPeer){log('joining a reported waiting peer directly (no room password)');state('connecting to waiting peer','wait');openPeer(ids.length-1,ticket);}else openPeer(0,ticket);
 }catch(e){
 if(options.auto){
