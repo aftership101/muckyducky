@@ -91,8 +91,9 @@ function snapshotFromReports(){
   const byRoom=new Map();
   const all=liveEntries();
   for(const r of all){
-    const row=byRoom.get(r.room)||{room:r.room,participants:0,connected:0,latest:0,waitingPeers:[]};
-    row.participants++;if(r.connected)row.connected++;else if(r.peerId)row.waitingPeers.push(r.peerId);
+    const row=byRoom.get(r.room)||{room:r.room,participants:0,connected:0,latest:0,waitingPeers:[],callPeers:[],missingIds:0};
+    row.participants++;if(r.connected)row.connected++;
+    if(r.peerId)(r.connected?row.callPeers:row.waitingPeers).push(r.peerId);else row.missingIds++;
     row.latest=Math.max(row.latest,r.at);
     byRoom.set(r.room,row);
   }
@@ -103,8 +104,10 @@ function render(snapshot){
   if(!adminMode||!snapshot)return;
   const rooms=Array.isArray(snapshot.rooms)?snapshot.rooms:[];
   const participants=Number(snapshot.participants)||0,connected=Number(snapshot.connected)||0;
-  const counts=[['Rooms reporting',rooms.length],['Rooms with calls',rooms.filter(r=>(r.connected||0)>0).length],
-    ['Participants reporting',participants],['In a call',connected],['Waiting',Math.max(0,participants-connected)]];
+  const soloUnverified=rooms.filter(r=>r.participants===1&&r.connected===1).length;
+  const counts=[['Rooms reporting',rooms.length],['Rooms with call reports',rooms.filter(r=>(r.connected||0)>0).length],
+    ['Participants reporting',participants],['Reporting a call',connected],['Reporting waiting',Math.max(0,participants-connected)],
+    ['Solo call reports (unverified)',soloUnverified]];
   metrics.replaceChildren();
   for(const [title,count] of counts){
     const div=document.createElement('div');div.className='adminMetric';
@@ -125,16 +128,28 @@ function render(snapshot){
       for(const value of items){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}
       row.title='Anonymous room tag: '+String(r.room||'').slice(0,8);
       roomRows.append(row);
-      for(const id of r.waitingPeers||[]){
+      for(const id of [...(r.waitingPeers||[]),...(r.callPeers||[])]){
         if(typeof id!=='string'||!/^md-[a-f0-9]{42}-[a-f]$/.test(id)&&!/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(id))continue;
         const actionRow=document.createElement('tr'),cell=document.createElement('td'),button=document.createElement('button');
         cell.colSpan=4;
-        button.type='button';button.textContent='Join waiting participant';
+        button.type='button';button.textContent=(r.callPeers||[]).includes(id)?'Attempt rejoin to reported call':'Join waiting participant';
         button.addEventListener('click',()=>{
           closeAdmin();
           window.dispatchEvent(new CustomEvent('muckyducky:admin-join',{detail:{peerId:id}}));
         });
         cell.append(button);actionRow.append(cell);roomRows.append(actionRow);
+      }
+      if(r.missingIds>0){
+        const explanationRow=document.createElement('tr'),cell=document.createElement('td');
+        cell.colSpan=4;
+        cell.textContent=r.missingIds+' reporting browser(s) did not provide a calling ID (older code or offline signaling). Cannot dial via admin; use the original room password.';
+        explanationRow.append(cell);roomRows.append(explanationRow);
+      }
+      if(r.participants===1&&r.connected===1){
+        const cautionRow=document.createElement('tr'),cell=document.createElement('td');
+        cell.colSpan=4;
+        cell.textContent='Unverified: this browser reports a call, but no second reporter is visible. Could be an old or interrupted connection.';
+        cautionRow.append(cell);roomRows.append(cautionRow);
       }
     });
   }
