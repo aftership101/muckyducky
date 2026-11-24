@@ -465,7 +465,7 @@ catch(e){pendingAudio=true;ui.restoreBtn.hidden=false;log('playback blocked: '+e
 }
 function mediaEvents(c){
 if(media&&media!==c){c.close();return;}
-media=c;state('connecting','wait');
+media=c;if(!hasConnectedCall())state('connecting','wait');
 const rtc=c.peerConnection;
 if(rtc){
 const check=()=>{log('webrtc: '+rtc.connectionState+' / ice '+rtc.iceConnectionState);
@@ -479,7 +479,7 @@ rtc.addEventListener('iceconnectionstatechange',check);
 }
 c.on('stream',s=>{if(media!==c)return;remoteAudioInterruptedAt=0;callAttemptAt=0;mediaOpenedAt=Date.now();retryCount=0;nextRetry=0;lastAudioFlow=Date.now();rememberConnectedPeer(c.peer);resetPlaybackTracking();ui.remoteAudio.srcObject=s;transportFailedAt=0;markTarget(dialTargetName,'connected');for(const t of s.getAudioTracks()){t.addEventListener('mute',()=>{remoteAudioInterruptedAt=Date.now();log('remote microphone temporarily interrupted; preserving call');});t.addEventListener('unmute',()=>{remoteAudioInterruptedAt=0;log('remote track resumed');play();});t.addEventListener('ended',()=>{log('remote audio track ended; requesting a fresh call');if(media===c&&!stopping){closeMedia();state('reconnecting','wait');}});}state('connected','live');holdRemote=false;problem('');relayMesh();if(!data?.open||remoteState==='offline'||remoteState.startsWith('disconnected'))remote('audio connected\ndiagnostics: '+(data?.open?'waiting for status':'connecting')+'\nincoming sound: not yet verified');startClock();play();heartbeat();dialData();});
 c.on('close',()=>{if(media!==c)return;media=null;ui.remoteAudio.srcObject=null;if(!hasConnectedCall())stopClock();if(!stopping){if(!c.open)advanceTarget('closed before connected');nextRetry=Date.now()+1200;if(hasConnectedCall())state('connected','live');else{state('reconnecting','wait');remote('disconnected\nreason: '+(remoteReason||'unknown; connection ended'));}relayMesh();}});
-c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state('reconnecting','wait');}});
+c.on('error',e=>{log('media error: '+(e.type||e.message));if(media===c){closeMedia();if(!stopping)state(hasConnectedCall()?'connected':'reconnecting',hasConnectedCall()?'live':'wait');}});
 }
 function watchData(c){
 if(data&&data!==c){if(data.open&&media?.open&&data.peer===media.peer){c.close();return;}if(data.open&&data.peer!==c.peer){c.close();return;}try{data.close();}catch{}}
@@ -559,7 +559,7 @@ refresh();ui.localState.textContent+='\naudio quality: '+quality+(lastStats?.rtt
 function peerReady(p,index,ticket){
 p.on('open',()=>{
 if(p!==peer||ticket!==epoch||stopping){p.destroy();return;}
-slot=index;dialTargetIndex=0;state((rescueJoin||autoRescue)?'finding existing call':'waiting','wait');refresh();
+slot=index;dialTargetIndex=0;if(!hasConnectedCall())state((rescueJoin||autoRescue)?'finding existing call':'waiting','wait');refresh();
 if(index>=1||manualScan||rescueJoin||autoRescue){holdRemote=false;dial();}
 clearTimers();
 redialTimer=setInterval(()=>{
@@ -655,8 +655,8 @@ if(e.type==='unavailable-id'&&index===ids.length-1){occupiedSlots.add('backup');
   roomRetryTimer=setTimeout(()=>{if(ticket===epoch&&!stopping&&!peer&&stream){ids[6]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));ids[7]='md-'+ids[0].slice(3,35)+'-r-'+(crypto.randomUUID?.().replace(/-/g,'')||Math.random().toString(36).slice(2));openPeer((rescueJoin||autoRescue)?7:6,ticket);}},2500);
   return;
 }
-if(e.type==='peer-unavailable'){if(media&&!media.open){const unavailableId=media.peer;const target=allRoomSlots().find(t=>t.id===unavailableId);if(target){emptyReports[target.label]=Date.now();markTarget(target.label,'empty (server says peer unavailable)');log('slot '+target.label+' not registered at last check');}advanceTarget('empty (not registered)');closeMedia();}if(!media)state('waiting','wait');return;}
-if(['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)){state('reconnecting','wait');return;}
+if(e.type==='peer-unavailable'){if(media&&!media.open){const unavailableId=media.peer;const target=allRoomSlots().find(t=>t.id===unavailableId);if(target){emptyReports[target.label]=Date.now();markTarget(target.label,'empty (server says peer unavailable)');log('slot '+target.label+' not registered at last check');}advanceTarget('empty (not registered)');closeMedia();}if(!media)state(hasConnectedCall()?'connected':'waiting',hasConnectedCall()?'live':'wait');return;}
+if(['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)){if(!hasConnectedCall())state('reconnecting','wait');return;}
 problem('connection: '+e.type);
 });
 }
