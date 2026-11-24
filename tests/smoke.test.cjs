@@ -113,7 +113,7 @@ assert.match(js,/label:'A',id:ids\[0\]/);
 assert.match(js,/label:'B',id:ids\[1\]/);
 assert.match(js,/label:'C',id:original\.slice\(0,-1\)\+'c'/);
 assert.match(js,/label:'D',id:original\.slice\(0,-1\)\+'d'/);
-assert.match(js,/filter\(t=>t\.id!==peer\.id\)/);
+assert.match(js,/const standard=allRoomSlots\(\)\.filter\(t=>t\.id!==peer\.id/);
 assert.match(js,/slot attempts: /);
 assert.match(js,/dialTargetIndex=\(dialTargetIndex\+1\)%targets\.length/);
 assert.match(js,/if\(!data&&media\?\.open\)dialData\(\)/);
@@ -166,7 +166,7 @@ test('slot count is honest and own peer is never called',()=>{
  assert.match(js,/t\.id===connectedPeer/);
  assert.match(js,/not checked \/ unknown/);
  assert.match(js,/selected\.id===peer\.id/);
- assert.match(js,/filter\(t=>t\.id!==peer\.id\)/);
+ assert.match(js,/const standard=allRoomSlots\(\)\.filter\(t=>t\.id!==peer\.id/);
  assert.match(html,/app\.js\?v=41/);
 });
 
@@ -195,7 +195,7 @@ test('admin mode does not request a microphone for password 1',()=>{
 test('presence collector tracks reported rooms and call participation',()=>{
  assert.doesNotThrow(()=>new vm.Script(presence));
  assert.match(presence,/HUB_ID='md-presence-admin-v1'/);
- assert.match(presence,/Rooms with calls/);
+ assert.match(presence,/Rooms with call reports/);
  assert.match(presence,/type:'presence'/);
  assert.match(presence,/type:'snapshot'/);
  assert.match(presence,/previousConnected!==mediaConnected\|\|previousPeerId!==mediaPeerId\)sendReport\(\)/);
