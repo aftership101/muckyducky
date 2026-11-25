@@ -79,7 +79,7 @@ test('returning browsers have spare peer IDs and persistent device identity', ()
   assert.match(js,/incomingDevice!==remoteDevice/);
   assert.match(js,/incomingSession===previousSession/);
   assert.match(js,/advanceTarget\('no answer'\)/);
-  assert.match(html,/app\.js\?v=43/);
+  assert.match(html,/app\.js\?v=44/);
 });
 
 test('interruption resilience and recovery are guarded',()=>{
@@ -91,7 +91,7 @@ assert.match(js,/scheduleAudioResume\('playback paused'\)/);
 assert.match(js,/resumeCall\('audio device changed'\)/);
 assert.match(js,/resumeCall\('page shown'\)/);
 assert.match(js,/!document\.hidden&&!audioSessionInterrupted/);
-assert.match(html,/app\.js\?v=43/);
+assert.match(html,/app\.js\?v=44/);
 });
 
 test('long quiet calls do not expire on elapsed time or silent RTP alone',()=>{
@@ -99,7 +99,7 @@ assert.doesNotMatch(js,/quality==='dead'&&Date\.now\(\)-lastRemote>/);
 assert.match(js,/pc\.connectionState==='failed'\|\|pc\.connectionState==='closed'\|\|pc\.iceConnectionState==='failed'/);
 assert.match(js,/function startClock\(\)/);
 assert.doesNotMatch(js,/setTimeout\(\(\)=>teardown\(/);
-assert.match(html,/app\.js\?v=43/);
+assert.match(html,/app\.js\?v=44/);
 });
 
 test('the footer has a tiny unlabeled live visitor widget',()=>{assert.match(html,/id="onlineCount"/);assert.match(html,/\["small","mckdcky26q2","mdc"\]/);});
@@ -117,7 +117,7 @@ assert.match(js,/const standard=allRoomSlots\(\)\.filter\(t=>t\.id!==peer\.id/);
 assert.match(js,/slot attempts: /);
 assert.match(js,/dialTargetIndex=\(dialTargetIndex\+1\)%targets\.length/);
 assert.match(js,/if\(!data&&media\?\.open\)dialData\(\)/);
-assert.match(html,/app\.js\?v=43/);
+assert.match(html,/app\.js\?v=44/);
 });
 
 test('occupied IDs never imply active users and backup slots accept calls',()=>{
@@ -127,7 +127,7 @@ assert.doesNotMatch(js,/index>=2\)\{c\.close\(\)/);
 assert.match(js,/returning device taking over unresponsive call/);
 assert.match(js,/rejected incoming duplicate while existing call is protected/);
 assert.match(js,/remote session changed; preserving media/);
-assert.match(html,/app\.js\?v=43/);
+assert.match(html,/app\.js\?v=44/);
 });
 
 test('manual scan works when user owns the waiting A slot',()=>{
@@ -138,7 +138,7 @@ test('manual scan works when user owns the waiting A slot',()=>{
  assert.match(js,/if\(stopping\|\|starting\|\|hasConnectedCall\(\)\)return/);
  assert.match(js,/advanceTarget\('skipped manually'\)/);
  assert.match(js,/manualScan=false/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('scan button is available before a call and can start searching',()=>{
@@ -147,7 +147,7 @@ test('scan button is available before a call and can start searching',()=>{
  assert.match(js,/if\(!stream\)\{begin\(true\);return;\}/);
  assert.match(js,/manualScan=scanRequested/);
  assert.match(js,/ui\.scanBtn\.hidden=false/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('Linux Chromium browsers can use basic audio capture fallback and focus recovery',()=>{
@@ -155,7 +155,7 @@ assert.match(js,/getUserMedia\(\{audio:true,video:false\}\)/);
 assert.match(js,/window\.addEventListener\('focus'/);
 assert.match(js,/PipeWire\/PulseAudio/);
 assert.match(js,/Allow microphone access in Vivaldi/);
-assert.match(html,/app\.js\?v=43/);
+assert.match(html,/app\.js\?v=44/);
 });
 
 test('slot count is honest and own peer is never called',()=>{
@@ -167,7 +167,7 @@ test('slot count is honest and own peer is never called',()=>{
  assert.match(js,/not checked \/ unknown/);
  assert.match(js,/selected\.id===peer\.id/);
  assert.match(js,/const standard=allRoomSlots\(\)\.filter\(t=>t\.id!==peer\.id/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('PeerJS unavailable signals empty only for the attempted ID',()=>{
@@ -177,19 +177,19 @@ test('PeerJS unavailable signals empty only for the attempted ID',()=>{
  assert.match(js,/empty \(not registered at last check\)/);
  assert.match(js,/Date\.now\(\)-emptyReports\[t\.label\]<30000/);
  assert.match(js,/no answer \(occupancy unknown\)/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('admin mode does not request a microphone for password 1',()=>{
  assert.match(html,/id="adminPanel"/);
  assert.match(html,/id="adminMetrics"/);
  assert.match(html,/id="adminRoomRows"/);
- assert.match(html,/presence\.js\?v=4/);
+ assert.match(html,/presence\.js\?v=5/);
  assert.match(js,/ui\.password\.value==='1'/);
  assert.match(js,/muckyducky:admin-open/);
  assert.match(js,/muckyducky:presence/);
  assert.match(js,/room:stream\?activeRoomPrimary:null/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('presence collector tracks reported rooms and call participation',()=>{
@@ -230,7 +230,7 @@ test('rescue mode joins with a fresh peer ID and can dial old Safari A/B without
  assert.match(js,/slot>=1\|\|manualScan\|\|rescueJoin\|\|autoRescue/);
  assert.match(js,/index>=1\|\|manualScan\|\|rescueJoin\|\|autoRescue/);
  assert.match(js,/openPeer\(\(rescueJoin\|\|autoRescue\)\?7:6,ticket\)/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('rescue join can dial older callers without taking occupied A or B',()=>{
@@ -238,7 +238,7 @@ test('rescue join can dial older callers without taking occupied A or B',()=>{
  assert.match(js,/if\(rescueJoin\)\{log\('rescue join:/);
  assert.match(js,/manualScan=true;openPeer\(ids\.length-1,ticket\)/);
  assert.match(js,/get\('rescue'\)==='1'/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('rescue mode cycles unresponsive slots quickly without occupying their IDs',()=>{
@@ -255,7 +255,7 @@ test('unavailable A immediately yields to a fresh independent peer ID',()=>{
  assert.match(js,/without claiming B/);
  assert.match(js,/autoRescue=false/);
  assert.match(js,/rescueJoin\|\|autoRescue/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('diagnostics outbound initiated by B to legacy A even when B ID sorts above A',()=>{
@@ -278,7 +278,7 @@ test('find waiting participant reuses the live peer without reloading and clears
  assert.match(js,/else if\(peer\?\.disconnected&&!peer\.destroyed\)/);
  assert.match(js,/openPeer\(ids\.length-1,epoch\)/);
  assert.match(js,/find waiting participant: scanning all known slots/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('direct join uses reported waiting calling ID, not the room password',()=>{
@@ -290,8 +290,8 @@ test('direct join uses reported waiting calling ID, not the room password',()=>{
  assert.match(presence,/waitingPeers:\[\]/);
  assert.match(presence,/peerId:mediaPeerId/);
  assert.match(presence,/Join waiting participant/);
- assert.match(html,/app\.js\?v=43/);
- assert.match(html,/presence\.js\?v=4/);
+ assert.match(html,/app\.js\?v=44/);
+ assert.match(html,/presence\.js\?v=5/);
 });
 
 test('repeated same-device joins carry a new session ID and rejoin flag',()=>{
@@ -304,12 +304,12 @@ test('repeated same-device joins carry a new session ID and rejoin flag',()=>{
  assert.match(js,/if\(refreshRejoinActive\)\{/);
  assert.match(js,/rejoin attempt with a fresh session ID/);
  assert.match(js,/metadata:\{device:deviceId,session:sessionId,rejoin:refreshRejoinActive\}/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('emergency rescue marks calls as same-device rejoins even when opened in another tab',()=>{
  assert.match(js,/isReturnToRoom=!!requestedPeer\|\|rescueJoin\|\|!!savedPrimary\|\|wasInThisRoom\(newIds\[0\]\)/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
 });
 
 test('admin allows a recovery call to a participant that reports already being in a call',()=>{
@@ -318,8 +318,8 @@ assert.match(presence,/Attempt rejoin to reported call/);
 assert.match(presence,/Solo call reports \(unverified\)/);
 assert.match(presence,/did not provide a calling ID/);
 assert.match(html,/Call reports<\/th>/);
-assert.match(html,/app\.js\?v=43/);
-assert.match(html,/presence\.js\?v=4/);
+assert.match(html,/app\.js\?v=44/);
+assert.match(html,/presence\.js\?v=5/);
 });
 test('direct rejoin announces reclaim and remembers previously connected random backup IDs',()=>{
 assert.match(js,/isReturnToRoom=!!requestedPeer\|\|rescueJoin/);
@@ -343,7 +343,7 @@ test('up to three participants share the normal call button through a second med
  assert.match(js,/clearExtras\(\)/);
  assert.match(js,/rememberConnectedPeer\(c\.peer\)/);
  assert.match(js,/playExtras\(\)/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
  assert.equal((html.match(/id="callBtn"/g)||[]).length,1);
  assert.doesNotMatch(html,/groupBtn|threePersonButton|startGroupCall/);
 });
@@ -352,5 +352,19 @@ test('an active secondary audio connection stays connected while primary retries
  assert.match(js,/media=c;if\(!hasConnectedCall\(\)\)state\('connecting'/);
  assert.match(js,/if\(!media\)state\(hasConnectedCall\(\)\?'connected':'waiting'/);
  assert.match(js,/if\(!hasConnectedCall\(\)\)state\('reconnecting','wait'\)/);
- assert.match(html,/app\.js\?v=43/);
+ assert.match(html,/app\.js\?v=44/);
+});
+
+test('admin rooms use password-verified normal mesh join, not isolated direct join',()=>{
+ assert.match(presence,/async function joinReportedRoom\(roomTag\)/);
+ assert.match(presence,/window\.prompt/);
+ assert.match(presence,/muckyducky-private-room-v2/);
+ assert.match(presence,/muckyducky-admin-room-tag-v1/);
+ assert.match(presence,/computed!==roomTag/);
+ assert.match(presence,/muckyducky:admin-room-join/);
+ assert.match(presence,/r\.participants>0&&r\.participants<3/);
+ assert.match(js,/muckyducky:admin-room-join/);
+ assert.match(js,/begin\(true,\{roomPrimary:primary\}\)/);
+ assert.match(html,/app\.js\?v=44/);
+ assert.match(html,/presence\.js\?v=5/);
 });
