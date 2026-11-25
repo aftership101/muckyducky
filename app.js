@@ -735,6 +735,11 @@ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
 }
 finally{starting=false;ui.callBtn.disabled=false;}
 }
+window.addEventListener('muckyducky:admin-room-join',e=>{
+  const primary=e.detail?.roomPrimary;
+  if(typeof primary!=='string'||!/^md-[a-f0-9]{42}-a$/.test(primary))return;
+  begin(true,{roomPrimary:primary});
+});
 window.addEventListener('muckyducky:admin-join',e=>{
   const target=e.detail?.peerId;
   if(typeof target!=='string')return;
