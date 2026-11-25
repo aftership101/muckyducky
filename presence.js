@@ -100,6 +100,22 @@ function snapshotFromReports(){
   return {type:'snapshot',rooms:[...byRoom.values()].sort((a,b)=>a.room.localeCompare(b.room)),
     participants:all.length,connected:all.filter(x=>x.connected).length,updated:Date.now()};
 }
+async function joinReportedRoom(roomTag){
+  if(typeof roomTag!=='string'||!/^[a-f0-9]{20}$/.test(roomTag))return;
+  const typed=window.prompt('Enter this room\'s shared password to join:');
+  if(typed===null)return;
+  if(typed.length<4){setStatus('Room password must contain at least 4 characters.');return;}
+  try{
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('muckyducky-private-room-v2\u0000'+typed));
+    const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+    const roomPrimary='md-'+hash.slice(0,42)+'-a';
+    const check=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('muckyducky-admin-room-tag-v1|'+roomPrimary));
+    const computed=Array.from(new Uint8Array(check),b=>b.toString(16).padStart(2,'0')).join('').slice(0,20);
+    if(computed!==roomTag){setStatus('That password does not match the selected room.');return;}
+    closeAdmin();
+    window.dispatchEvent(new CustomEvent('muckyducky:admin-room-join',{detail:{roomPrimary}}));
+  }catch{setStatus('Unable to verify the room password in this browser.');}
+}
 function render(snapshot){
   if(!adminMode||!snapshot)return;
   const rooms=Array.isArray(snapshot.rooms)?snapshot.rooms:[];
@@ -128,6 +144,13 @@ function render(snapshot){
       for(const value of items){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}
       row.title='Anonymous room tag: '+String(r.room||'').slice(0,8);
       roomRows.append(row);
+      if(r.participants>0&&r.participants<3&&((r.waitingPeers||[]).length+(r.callPeers||[]).length)>0){
+        const actionRow=document.createElement('tr'),cell=document.createElement('td'),button=document.createElement('button');
+        cell.colSpan=4;
+        button.type='button';button.textContent='Join room';
+        button.addEventListener('click',()=>joinReportedRoom(r.room));
+        cell.append(button);actionRow.append(cell);roomRows.append(actionRow);
+      }
       for(const id of [...(r.waitingPeers||[]),...(r.callPeers||[])]){
         if(typeof id!=='string'||!/^md-[a-f0-9]{42}-[a-f]$/.test(id)&&!/^md-[a-f0-9]{32}-r-[a-z0-9-]+$/.test(id))continue;
         const actionRow=document.createElement('tr'),cell=document.createElement('td'),button=document.createElement('button');
